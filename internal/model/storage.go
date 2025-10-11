@@ -39,12 +39,12 @@ func (s *Storage) RandomString(letters string) string {
 	return string(b)
 }
 
-func (s *Storage) Get(shortUrl string) string {
+func (s *Storage) Get(shortURL string) string {
 	sourceURL := ""
 	s.urls.Range(func(key, value interface{}) bool {
 		k := key.(string)
 		v := value.(string)
-		if v == shortUrl {
+		if v == shortURL {
 			sourceURL = k
 		}
 		return true
