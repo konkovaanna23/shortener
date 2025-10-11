@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	LENGTH_URL = 6
+	lengthURL = 6
 )
 
 type Converter struct {
@@ -13,18 +13,18 @@ type Converter struct {
 	storage *model.Storage
 }
 
-func NewConverter(serverUrl string) *Converter {
+func NewConverter(serverURL string) *Converter {
 	return &Converter{
-		url:     serverUrl,
-		storage: model.NewStorage(LENGTH_URL),
+		url:     serverURL,
+		storage: model.NewStorage(lengthURL),
 	}
 }
 
-func (c *Converter) AddUrl(url string) string {
+func (c *Converter) AddURL(url string) string {
 	result := c.storage.Add(url)
 	return c.url + "/" + result
 }
 
-func (c *Converter) GetUrl(shortUrl string) string {
-	return c.storage.Get(shortUrl)
+func (c *Converter) GetURL(shortURL string) string {
+	return c.storage.Get(shortURL)
 }

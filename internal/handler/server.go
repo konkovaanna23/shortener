@@ -19,7 +19,7 @@ func NewServer(url string) *Server {
 		url:       url,
 		converter: service.NewConverter("http://" + url),
 	}
-	mux.HandleFunc("/", s.newOrGetUrl)
+	mux.HandleFunc("/", s.newOrGetURL)
 	return s
 }
 

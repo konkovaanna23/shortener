@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (s *Server) newOrGetUrl(w http.ResponseWriter, r *http.Request) {
+func (s *Server) newOrGetURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		/*if r.Header.Get("Content-Type") != "text/plain" {
 			http.Error(w, "Некорректный Content-Type", http.StatusBadRequest)
@@ -25,7 +25,7 @@ func (s *Server) newOrGetUrl(w http.ResponseWriter, r *http.Request) {
 			return
 		}*/
 		log.Println("POST Заданный URL:", text)
-		result := s.converter.AddUrl(text)
+		result := s.converter.AddURL(text)
 		log.Println("POST Сокращенный URL:", result)
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusCreated)
@@ -40,7 +40,7 @@ func (s *Server) newOrGetUrl(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Пустой URL", http.StatusBadRequest)
 		}
 		log.Println("GET Заданный URL:", shortURL)
-		sourceURL := s.converter.GetUrl(shortURL)
+		sourceURL := s.converter.GetURL(shortURL)
 		log.Println("GET Исходный URL:", sourceURL)
 		w.Header().Set("Location", sourceURL)
 		w.WriteHeader(http.StatusTemporaryRedirect)
