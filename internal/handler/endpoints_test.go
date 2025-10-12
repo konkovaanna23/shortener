@@ -19,7 +19,7 @@ func TestServer_newURL(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	s := NewServer("localhost:8080")
+	s := NewServer("localhost:8080", "http://localhost:8080")
 	s.newURL(recorder, req)
 	if recorder.Code != http.StatusCreated {
 		t.Errorf(
@@ -43,7 +43,7 @@ func TestServer_newURL(t *testing.T) {
 
 func TestServer_getURL(t *testing.T) {
 	sourceURL := "https://google.com"
-	s := NewServer("localhost:8080")
+	s := NewServer("localhost:8080", "http://localhost:8080")
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
 	response, err := http.Post(ts.URL+"/", "text/plain", strings.NewReader(sourceURL))
