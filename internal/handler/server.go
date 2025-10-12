@@ -1,25 +1,29 @@
 package handler
 
 import (
-	"github.com/konkovaanna23/shortener/internal/service"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/service"
 )
 
 type Server struct {
 	url       string
-	mux       *http.ServeMux
+	mux       *chi.Mux
 	converter *service.Converter
 }
 
 func NewServer(url string) *Server {
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
+
 	s := &Server{
 		mux:       mux,
 		url:       url,
 		converter: service.NewConverter("http://" + url),
 	}
-	mux.HandleFunc("/", s.newOrGetURL)
+	s.mux.Post("/", s.newURL)
+	s.mux.Get("/{shorturl}", s.getURL)
 	return s
 }
 
