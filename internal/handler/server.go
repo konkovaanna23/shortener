@@ -27,8 +27,7 @@ func NewServer(url, urlForShort string) *Server {
 	return s
 }
 
-func (s *Server) Start() {
-	if err := http.ListenAndServe(s.url, s.mux); err != nil {
-		panic(err)
-	}
+func (s *Server) Start() error {
+	err := http.ListenAndServe(s.url, s.mux)
+	return err
 }
