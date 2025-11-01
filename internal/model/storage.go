@@ -50,5 +50,8 @@ func (s *Storage) RandomString(letters string) string {
 
 func (s *Storage) Get(shortURL string) (string, bool) {
 	URL, ok := s.urls.Load(shortURL)
+	if !ok {
+		return "", ok
+	}
 	return URL.(string), ok
 }
