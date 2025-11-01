@@ -10,7 +10,10 @@ func TestStorage_Get(t *testing.T) {
 	s := model.NewStorage(5)
 	sourceURL := "http://ya.ru"
 	result := s.Add(sourceURL)
-	resultURL := s.Get(result)
+	resultURL, ok := s.Get(result)
+	if ok != true {
+		t.Errorf("Метрика не найдена")
+	}
 	if sourceURL != resultURL {
 		t.Errorf("Get() = %v, want %v", resultURL, sourceURL)
 	}

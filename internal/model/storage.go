@@ -20,13 +20,22 @@ func NewStorage(length int) *Storage {
 }
 
 func (s *Storage) Add(url string) string {
-	value, ok := s.urls.Load(url)
-	if !ok {
+	shortURL := ""
+	s.urls.Range(func(key, value interface{}) bool {
+		k := key.(string)
+		v := value.(string)
+		if v == url {
+			shortURL = k
+			return false
+		}
+		return true
+	})
+	if shortURL == "" {
 		str := s.RandomString(letters)
-		s.urls.Store(url, str)
+		s.urls.Store(str, url)
 		return str
 	} else {
-		return value.(string)
+		return shortURL
 	}
 
 }
@@ -39,15 +48,7 @@ func (s *Storage) RandomString(letters string) string {
 	return string(b)
 }
 
-func (s *Storage) Get(shortURL string) string {
-	sourceURL := ""
-	s.urls.Range(func(key, value interface{}) bool {
-		k := key.(string)
-		v := value.(string)
-		if v == shortURL {
-			sourceURL = k
-		}
-		return true
-	})
-	return sourceURL
+func (s *Storage) Get(shortURL string) (string, bool) {
+	URL, ok := s.urls.Load(shortURL)
+	return URL.(string), ok
 }

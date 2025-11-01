@@ -13,22 +13,21 @@ type Server struct {
 	converter *service.Converter
 }
 
-func NewServer(url string) *Server {
+func NewServer(url, urlForShort string) *Server {
 
 	mux := chi.NewRouter()
 
 	s := &Server{
 		mux:       mux,
 		url:       url,
-		converter: service.NewConverter("http://" + url),
+		converter: service.NewConverter(urlForShort),
 	}
 	s.mux.Post("/", s.newURL)
 	s.mux.Get("/{shorturl}", s.getURL)
 	return s
 }
 
-func (s *Server) Start() {
-	if err := http.ListenAndServe(s.url, s.mux); err != nil {
-		panic(err)
-	}
+func (s *Server) Start() error {
+	err := http.ListenAndServe(s.url, s.mux)
+	return err
 }
