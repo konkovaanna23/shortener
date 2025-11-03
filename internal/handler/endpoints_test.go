@@ -97,7 +97,7 @@ func TestServer_newJsonURL(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Вызываем тестируемый метод
-	s.newJsonURL(w, req)
+	s.newJSONURL(w, req)
 
 	// Проверяем статус
 	if w.Code != http.StatusCreated {

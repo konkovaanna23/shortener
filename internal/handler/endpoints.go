@@ -44,7 +44,7 @@ func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
 }
 
-func (s *Server) newJsonURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Ошибка чтения BODY", http.StatusBadRequest)
