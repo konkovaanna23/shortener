@@ -1,9 +1,11 @@
 package service
 
 import (
+	"errors"
 	"fmt"
-	"github.com/konkovaanna23/shortener/internal/model"
 	"net/url"
+
+	"github.com/konkovaanna23/shortener/internal/model"
 )
 
 const (
@@ -13,6 +15,14 @@ const (
 type Converter struct {
 	url     string
 	storage *model.Storage
+}
+
+type URLRequest struct {
+	URL string `json:"url"`
+}
+
+type URLResponse struct {
+	URLShort string `json:"result"`
 }
 
 func NewConverter(serverURL string) *Converter {
@@ -46,4 +56,15 @@ func (c *Converter) isValidURL(input string) bool {
 		return false
 	}
 	return true
+}
+
+func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
+	if url == nil {
+		return nil, errors.New("передана пустая структура")
+	}
+	result, err := c.AddURL(url.URL)
+	if err != nil {
+		return nil, err
+	}
+	return &URLResponse{URLShort: result}, nil
 }
