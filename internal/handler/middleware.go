@@ -25,7 +25,6 @@ func (l *ResponseCompressLogger) WriteHeader(code int) {
 		return
 	}
 	l.status = code
-	l.ResponseWriter.WriteHeader(code)
 }
 
 func (l *ResponseCompressLogger) Header() http.Header {
@@ -43,9 +42,9 @@ func (l *ResponseCompressLogger) Write(b []byte) (int, error) {
 
 func NewResponseCompressLogger(w http.ResponseWriter) *ResponseCompressLogger {
 	return &ResponseCompressLogger{
-		header: make(http.Header),
-		status: http.StatusOK,
-		buf:    new(bytes.Buffer),
+		ResponseWriter: w,
+		header:         make(http.Header),
+		buf:            new(bytes.Buffer),
 	}
 }
 
@@ -91,6 +90,9 @@ func (s *Server) LoggingMiddleware(next http.Handler) http.HandlerFunc {
 			body = writer.buf.Bytes()
 		}
 
+		if writer.status == 0 {
+			writer.status = http.StatusOK
+		}
 		w.WriteHeader(writer.status)
 
 		if _, err := w.Write(body); err != nil {
