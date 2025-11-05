@@ -68,7 +68,7 @@ func (s *Server) LoggingMiddleware(next http.Handler) http.HandlerFunc {
 		contentType := writer.header.Get("Content-Type")
 		var needCompress bool
 		if strings.Contains(acceptEncoding, "gzip") &&
-			(contentType == "application/json" || contentType == "text/html") {
+			(contentType == "application/json" || contentType == "text/plain") {
 			needCompress = true
 		}
 
@@ -112,7 +112,7 @@ func (s *Server) LoggingMiddleware(next http.Handler) http.HandlerFunc {
 
 func (s *Server) decompressRequest(r *http.Request) (*http.Request, error) {
 	if r.Header.Get("Content-Encoding") == "gzip" &&
-		(r.Header.Get("Content-Type") == "application/json" || r.Header.Get("Content-Type") == "text/html") {
+		(r.Header.Get("Content-Type") == "application/json" || r.Header.Get("Content-Type") == "text/plain") {
 		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
 			return nil, fmt.Errorf("%s", "Ошибка декодирования gzip")
