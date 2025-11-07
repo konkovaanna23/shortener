@@ -1,11 +1,14 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 
+	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/model"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,11 +28,27 @@ type URLResponse struct {
 	URLShort string `json:"result"`
 }
 
-func NewConverter(serverURL string) *Converter {
-	return &Converter{
+func NewConverter(serverURL string, filePath string) *Converter {
+	cvrt := &Converter{
 		url:     serverURL,
 		storage: model.NewStorage(lengthURL),
 	}
+	if filePath != "" {
+		data, err := file.ReadFromFile(filePath)
+		if err != nil {
+			logrus.Errorln(err)
+
+		} else {
+			resultMap, err := cvrt.decodeDataToMap(data)
+			if err != nil {
+				logrus.Errorln(err)
+			} else {
+				cvrt.storage.InitStorage(resultMap)
+			}
+		}
+
+	}
+	return cvrt
 }
 
 func (c *Converter) AddURL(url string) (string, error) {
@@ -67,4 +86,45 @@ func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
 		return nil, err
 	}
 	return &URLResponse{URLShort: result}, nil
+}
+
+func (c *Converter) decodeDataToMap(data []byte) (map[string]string, error) {
+	result := make(map[string]string)
+	if len(data) == 0 {
+		return nil, errors.New("данные не переданы")
+	} else {
+		var urls []*model.DescriptionURL
+		if err := json.Unmarshal(data, &urls); err != nil {
+			return nil, err
+		}
+		for _, desc := range urls {
+			result[desc.Short] = desc.Original
+		}
+	}
+	return result, nil
+}
+
+func (c *Converter) encodeMapToData() ([]byte, error) {
+	result := c.storage.GetAllURLMap()
+	if len(result) != 0 {
+		list := model.NewListURL()
+		for key, value := range result {
+			list.AddItеm(&model.DescriptionURL{Short: key, Original: value})
+		}
+		if data, err := json.Marshal(list.URLs); err != nil {
+			return nil, err
+		} else {
+			return data, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Converter) GetAllData() []byte {
+	if data, err := c.encodeMapToData(); err != nil {
+		logrus.Errorln(err)
+		return nil
+	} else {
+		return data
+	}
 }

@@ -13,14 +13,14 @@ type Server struct {
 	converter *service.Converter
 }
 
-func NewServer(url, urlForShort string) *Server {
+func NewServer(url string, converter *service.Converter) *Server {
 
 	mux := chi.NewRouter()
 
 	s := &Server{
 		mux:       mux,
 		url:       url,
-		converter: service.NewConverter(urlForShort),
+		converter: converter,
 	}
 	s.mux.Post("/", s.LoggingMiddleware(http.HandlerFunc(s.newURL)))
 	s.mux.Get("/{shorturl}", s.LoggingMiddleware(http.HandlerFunc(s.getURL)))
