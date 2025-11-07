@@ -5,7 +5,7 @@ import (
 )
 
 type DescriptionURL struct {
-	Id       int    `json:"uuid"`
+	ID       int    `json:"uuid"`
 	Short    string `json:"short_url"`
 	Original string `json:"original_url"`
 }
@@ -26,7 +26,7 @@ func (lu *ListURL) AddItеm(url *DescriptionURL) {
 	defer lu.mx.Unlock()
 	if url != nil {
 		idx := len(lu.URLs)
-		url.Id = idx + 1
+		url.ID = idx + 1
 		lu.URLs = append(lu.URLs, url)
 	}
 }
