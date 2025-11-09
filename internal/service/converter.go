@@ -111,20 +111,11 @@ func (c *Converter) encodeMapToData() ([]byte, error) {
 		for key, value := range result {
 			list.AddItеm(&model.DescriptionURL{Short: key, Original: value})
 		}
-		if data, err := json.Marshal(list.URLs); err != nil {
-			return nil, err
-		} else {
-			return data, nil
-		}
+		return json.Marshal(list.URLs)
 	}
 	return nil, nil
 }
 
-func (c *Converter) GetAllData() []byte {
-	if data, err := c.encodeMapToData(); err != nil {
-		logrus.Errorln(err)
-		return nil
-	} else {
-		return data
-	}
+func (c *Converter) GetAllData() ([]byte, error) {
+	return c.encodeMapToData()
 }

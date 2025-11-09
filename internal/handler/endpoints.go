@@ -21,6 +21,7 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	result, err := s.converter.AddURL(text)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	logrus.Info("POST Сокращенный URL:", result)
 	w.Header().Set("Content-Type", "text/plain")
@@ -39,6 +40,7 @@ func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Println("Ошибка:" + err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	logrus.Info("GET Исходный URL:", sourceURL)
 	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
@@ -55,16 +57,19 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(bodyBytes, &urlRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	logrus.Info("POST Заданный URL:", urlRequest.URL)
 	result, err := s.converter.AddURLForRequest(urlRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	logrus.Info("POST Сокращенный URL:", result.URLShort)
 	bodyResult, err := json.Marshal(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

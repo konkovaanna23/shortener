@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
@@ -17,33 +16,32 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	cfg := config.GetConfig()
 	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath)
 	server := handler.NewServer(cfg.URLserver, converter)
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-
-		go func() {
-			logrus.Println("Сервер запущен на :", cfg.URLserver)
-			err := server.Start()
-			if err != nil {
-				logrus.Errorln(err)
-			}
-		}()
-		<-ctx.Done()
-		logrus.Println("Отмена контекста...")
+		logrus.Printf("Сервер запущен на: %s", cfg.URLserver)
+		if err := server.Start(ctx); err != nil {
+			logrus.Error(err)
+		}
 	}()
 
 	<-sigChan
 
-	cancel()
-
-	file.SaveToFile(cfg.FilePath, converter.GetAllData())
+	data, err := converter.GetAllData()
+	if err != nil {
+		logrus.Error("Ошибка при получении данных для сохранения:", err)
+	} else {
+		if err := file.SaveToFile(cfg.FilePath, data); err != nil {
+			logrus.Error("Ошибка сохранения в файл:", err)
+		} else {
+			logrus.Println("Данные сохранены в файл:", cfg.FilePath)
+		}
+	}
 	logrus.Println("Сервер остановлен")
-	wg.Wait()
+
 }

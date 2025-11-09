@@ -1,16 +1,20 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/handler/middleware"
 	"github.com/konkovaanna23/shortener/internal/service"
+	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
 	url       string
 	mux       *chi.Mux
 	converter *service.Converter
+	srv       *http.Server
 }
 
 func NewServer(url string, converter *service.Converter) *Server {
@@ -22,13 +26,27 @@ func NewServer(url string, converter *service.Converter) *Server {
 		url:       url,
 		converter: converter,
 	}
-	s.mux.Post("/", s.LoggingMiddleware(http.HandlerFunc(s.newURL)))
-	s.mux.Get("/{shorturl}", s.LoggingMiddleware(http.HandlerFunc(s.getURL)))
-	s.mux.Post("/api/shorten", s.LoggingMiddleware(http.HandlerFunc(s.newJSONURL)))
+	s.mux.Use(middleware.CompressMiddleware)
+	s.mux.Use(middleware.LoggingMiddleware)
+	s.mux.Post("/", s.newURL)
+	s.mux.Get("/{shorturl}", s.getURL)
+	s.mux.Post("/api/shorten", s.newJSONURL)
+	s.srv = &http.Server{
+		Addr:    url,
+		Handler: mux,
+	}
 	return s
 }
 
-func (s *Server) Start() error {
-	err := http.ListenAndServe(s.url, s.mux)
+func (s *Server) Start(ctx context.Context) error {
+
+	go func() {
+		<-ctx.Done()
+		if err := s.srv.Shutdown(ctx); err != nil {
+			logrus.Error("Ошибка при закрытии сервера:", err)
+		}
+	}()
+
+	err := s.srv.ListenAndServe()
 	return err
 }
