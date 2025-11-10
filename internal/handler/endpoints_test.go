@@ -1,12 +1,16 @@
 package handler
 
 import (
-	"github.com/stretchr/testify/assert"
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/konkovaanna23/shortener/internal/service"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServer_newURL(t *testing.T) {
@@ -73,5 +77,50 @@ func TestServer_getURL(t *testing.T) {
 	defer redirectResp.Body.Close()
 	assert.Equal(t, sourceURL, redirectResp.Header.Get("Location"))
 	assert.Equal(t, http.StatusTemporaryRedirect, redirectResp.StatusCode)
+
+}
+
+func TestServer_newJsonURL(t *testing.T) {
+	s := NewServer("localhost:8080", "http://localhost:8080")
+
+	// Подготавливаем тело запроса
+	input := &service.URLRequest{
+		URL: "https://example.com",
+	}
+	bodyBytes, _ := json.Marshal(input)
+
+	// Создаём запрос
+	req := httptest.NewRequest("POST", "/api/shorten", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Записываем ответ
+	w := httptest.NewRecorder()
+
+	// Вызываем тестируемый метод
+	s.newJSONURL(w, req)
+
+	// Проверяем статус
+	if w.Code != http.StatusCreated {
+		t.Errorf("Ожидался статус 201, получили %d", w.Code)
+	}
+
+	// Проверяем заголовок Content-Type
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Ожидался Content-Type application/json, получили %s", contentType)
+	}
+
+	// Проверяем, что тело — валидный JSON
+	var result map[string]string
+	err := json.Unmarshal(w.Body.Bytes(), &result)
+	if err != nil {
+		t.Fatalf("Ответ не является валидным JSON: %v", err)
+	}
+
+	// Проверяем, что есть поле "result"
+	_, exists := result["result"]
+	if !exists {
+		t.Error("В JSON отсутствует поле 'result'")
+	}
 
 }

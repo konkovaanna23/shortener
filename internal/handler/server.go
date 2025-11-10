@@ -24,6 +24,7 @@ func NewServer(url, urlForShort string) *Server {
 	}
 	s.mux.Post("/", s.LoggingMiddleware(http.HandlerFunc(s.newURL)))
 	s.mux.Get("/{shorturl}", s.LoggingMiddleware(http.HandlerFunc(s.getURL)))
+	s.mux.Post("/api/shorten", s.LoggingMiddleware(http.HandlerFunc(s.newJSONURL)))
 	return s
 }
 
