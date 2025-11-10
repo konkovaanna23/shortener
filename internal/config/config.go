@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 )
 
 const (
@@ -14,12 +15,23 @@ type Config struct {
 	URLforShort string
 }
 
+func getEnvString(envKey, defaultValue string) string {
+	if v := os.Getenv(envKey); v != "" {
+		return v
+	}
+	return defaultValue
+}
+
 func GetConfig() *Config {
-	URLserver := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
-	URLforShort := flag.String("b", defaultURLShort, "Основной URL для сокращения")
+	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
+	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
 	flag.Parse()
+
+	urlServer := getEnvString("SERVER_ADDRESS", *urlServerFlag)
+	urlForShort := getEnvString("BASE_URL", *urlForShortFlag)
+
 	return &Config{
-		URLserver:   *URLserver,
-		URLforShort: *URLforShort,
+		URLserver:   urlServer,
+		URLforShort: urlForShort,
 	}
 }
