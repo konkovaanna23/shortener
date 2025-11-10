@@ -20,9 +20,9 @@ func TestServer_newURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	converter := service.NewConverter("http://localhost:8080", "test.json")
 	recorder := httptest.NewRecorder()
-	s := NewServer("localhost:8080", "http://localhost:8080")
+	s := NewServer("localhost:8080", converter)
 	s.newURL(recorder, req)
 	if recorder.Code != http.StatusCreated {
 		t.Errorf(
@@ -46,7 +46,8 @@ func TestServer_newURL(t *testing.T) {
 
 func TestServer_getURL(t *testing.T) {
 	sourceURL := "https://google.com"
-	s := NewServer("localhost:8080", "http://localhost:8080")
+	converter := service.NewConverter("http://localhost:8080", "test.json")
+	s := NewServer("localhost:8080", converter)
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
 	response, err := http.Post(ts.URL+"/", "text/plain", strings.NewReader(sourceURL))
@@ -81,7 +82,8 @@ func TestServer_getURL(t *testing.T) {
 }
 
 func TestServer_newJsonURL(t *testing.T) {
-	s := NewServer("localhost:8080", "http://localhost:8080")
+	converter := service.NewConverter("http://localhost:8080", "test.json")
+	s := NewServer("localhost:8080", converter)
 
 	input := &service.URLRequest{
 		URL: "https://example.com",

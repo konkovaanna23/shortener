@@ -15,7 +15,13 @@ type Storage struct {
 func NewStorage(length int) *Storage {
 	return &Storage{
 		length: length,
-		urls:   sync.Map{},
+		urls:   sync.Map{}, //map[shortURL]originalURL
+	}
+}
+
+func (s *Storage) InitStorage(urls map[string]string) {
+	for key, value := range urls {
+		s.urls.Store(key, value)
 	}
 }
 
@@ -54,4 +60,15 @@ func (s *Storage) Get(shortURL string) (string, bool) {
 		return "", ok
 	}
 	return URL.(string), ok
+}
+
+func (s *Storage) GetAllURLMap() map[string]string {
+	resultMap := make(map[string]string)
+	s.urls.Range(func(key, value interface{}) bool {
+		k := key.(string)
+		v := value.(string)
+		resultMap[k] = v
+		return true
+	})
+	return resultMap
 }
