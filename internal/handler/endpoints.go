@@ -40,6 +40,5 @@ func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	log.Println("GET Исходный URL:", sourceURL)
-	w.Header().Set("Location", sourceURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
 }

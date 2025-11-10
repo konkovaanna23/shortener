@@ -22,8 +22,8 @@ func NewServer(url, urlForShort string) *Server {
 		url:       url,
 		converter: service.NewConverter(urlForShort),
 	}
-	s.mux.Post("/", s.newURL)
-	s.mux.Get("/{shorturl}", s.getURL)
+	s.mux.Post("/", s.LoggingMiddleware(http.HandlerFunc(s.newURL)))
+	s.mux.Get("/{shorturl}", s.LoggingMiddleware(http.HandlerFunc(s.getURL)))
 	return s
 }
 
