@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/konkovaanna23/shortener/internal/config"
+	"github.com/konkovaanna23/shortener/internal/config/db"
 	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/handler"
 	"github.com/konkovaanna23/shortener/internal/service"
@@ -20,7 +21,13 @@ func main() {
 	defer cancel()
 
 	cfg := config.GetConfig()
-	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath)
+	database, err := db.NewConnect(cfg.DSN)
+	if err != nil {
+		logrus.Error("Ошибка при подключении к базе данных:", err)
+	} else {
+		logrus.Println("Подключение к базе данных успешно")
+	}
+	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath, database)
 	server := handler.NewServer(cfg.URLserver, converter)
 
 	go func() {

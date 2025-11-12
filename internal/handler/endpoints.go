@@ -2,11 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
 func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
@@ -75,4 +76,13 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Write(bodyResult)
 
+}
+
+func (s *Server) ping(w http.ResponseWriter, r *http.Request) {
+	err := s.converter.PingDB()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

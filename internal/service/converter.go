@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/konkovaanna23/shortener/internal/config/db"
 	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/sirupsen/logrus"
@@ -18,6 +20,7 @@ const (
 type Converter struct {
 	url     string
 	storage *model.Storage
+	db      *sqlx.DB
 }
 
 type URLRequest struct {
@@ -28,10 +31,11 @@ type URLResponse struct {
 	URLShort string `json:"result"`
 }
 
-func NewConverter(serverURL string, filePath string) *Converter {
+func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 	cvrt := &Converter{
 		url:     serverURL,
 		storage: model.NewStorage(lengthURL),
+		db:      db,
 	}
 	if filePath != "" {
 		data, err := file.ReadFromFile(filePath)
@@ -118,4 +122,12 @@ func (c *Converter) encodeMapToData() ([]byte, error) {
 
 func (c *Converter) GetAllData() ([]byte, error) {
 	return c.encodeMapToData()
+}
+
+func (c *Converter) PingDB() error {
+	err := db.Ping(c.db)
+	if err != nil {
+		return err
+	}
+	return nil
 }
