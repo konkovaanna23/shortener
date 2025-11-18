@@ -14,7 +14,7 @@ END
 $$;
 
 CREATE TABLE IF NOT EXISTS urls.links (
-	uuid int not null,
+	uuid int not null GENERATED ALWAYS AS IDENTITY,
 	short_url varchar(255) not null,
 	original_url text not null,
     created_at TIMESTAMP DEFAULT NOW(),
