@@ -5,9 +5,10 @@ import (
 )
 
 type DescriptionURL struct {
-	ID       int    `json:"uuid"`
-	Short    string `json:"short_url"`
-	Original string `json:"original_url"`
+	ID          int    `json:"uuid,omitempty"`
+	Short       string `json:"short_url,omitempty"`
+	Original    string `json:"original_url,omitempty"`
+	Correlation string `json:"correlation_id,omitempty"`
 }
 
 type ListURL struct {
