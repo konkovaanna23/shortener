@@ -106,7 +106,7 @@ func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
 }
 
 func (c *Converter) decodeDataToMap(data []byte) (map[string]string, error) {
-	result := make(map[string]string)
+	var result map[string]string
 	if len(data) == 0 {
 		return nil, errors.New("данные не переданы")
 	} else {
