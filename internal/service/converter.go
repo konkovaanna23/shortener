@@ -67,14 +67,14 @@ func (c *Converter) AddURL(url string) (string, error) {
 		msg := fmt.Sprintf("URL [%s] не является валидным", url)
 		return "", fmt.Errorf("%s", msg)
 	}
-	result := c.storage.Add(url)
+	result, err := c.storage.Add(url)
 	if c.db != nil {
 		err := c.StoreURLInDB(result, url)
 		if err != nil {
 			logrus.Errorln("ошибка сохранения в базу:", err)
 		}
 	}
-	return c.url + "/" + result, nil
+	return c.url + "/" + result, err
 }
 
 func (c *Converter) GetURL(shortURL string) (string, error) {
@@ -100,7 +100,11 @@ func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
 	}
 	result, err := c.AddURL(url.URL)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, model.ErrorConflictURL) {
+			return &URLResponse{URLShort: result}, err
+		} else {
+			return nil, err
+		}
 	}
 	return &URLResponse{URLShort: result}, nil
 }
@@ -157,7 +161,7 @@ func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.Descr
 			msg := fmt.Sprintf("URL [%s] не является валидным", url.Original)
 			return nil, fmt.Errorf("%s", msg)
 		}
-		short := c.storage.Add(url.Original)
+		short, _ := c.storage.Add(url.Original)
 		url.Short = short
 	}
 	err := c.TranStoreURLInDB(urls)

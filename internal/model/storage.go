@@ -1,8 +1,13 @@
 package model
 
 import (
+	"errors"
 	"math/rand"
 	"sync"
+)
+
+var (
+	ErrorConflictURL = errors.New("conflict url")
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -25,7 +30,7 @@ func (s *Storage) InitStorage(urls map[string]string) {
 	}
 }
 
-func (s *Storage) Add(url string) string {
+func (s *Storage) Add(url string) (string, error) {
 	shortURL := ""
 	s.urls.Range(func(key, value interface{}) bool {
 		k := key.(string)
@@ -39,9 +44,9 @@ func (s *Storage) Add(url string) string {
 	if shortURL == "" {
 		str := s.RandomString(letters)
 		s.urls.Store(str, url)
-		return str
+		return str, nil
 	} else {
-		return shortURL
+		return shortURL, ErrorConflictURL
 	}
 
 }
