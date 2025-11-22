@@ -127,12 +127,12 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	logrus.Info("POST Список сокращенных URL:", result)
 	bodyResult, err := json.Marshal(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	logrus.Info("POST Список сокращенных URL:", string(bodyResult))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(bodyResult)

@@ -156,11 +156,16 @@ func (c *Converter) PingDB() error {
 }
 
 func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.DescriptionURL, error) {
+	var errs []error
 	for _, url := range urls {
 		if !c.isValidURL(url.Original) {
-			msg := fmt.Sprintf("URL [%s] не является валидным", url.Original)
-			return nil, fmt.Errorf("%s", msg)
+			errs = append(errs, fmt.Errorf("URL [%s] не является валидным", url.Original))
 		}
+	}
+	if len(errs) != 0 {
+		return nil, errors.Join(errs...)
+	}
+	for _, url := range urls {
 		short, _ := c.storage.Add(url.Original)
 		url.Short = short
 	}
