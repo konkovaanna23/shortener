@@ -1,0 +1,1 @@
+DROP INDEX IS EXISTS  links_unique_idx;

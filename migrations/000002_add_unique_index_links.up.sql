@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS links_unique_idx ON urls.links (original_url);

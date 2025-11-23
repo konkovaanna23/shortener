@@ -17,7 +17,7 @@ func (c *Converter) GetInfoURLFromDB() (map[string]string, error) {
 func (c *Converter) StoreURLInDB(shortURL string, originalURL string) error {
 	result, err := c.db.Exec(`INSERT INTO urls.links (short_url, original_url)
 								VALUES ($1, $2)
-								ON CONFLICT (short_url) DO NOTHING;
+								ON CONFLICT (original_url) DO NOTHING;
 							 `, shortURL, originalURL)
 	if err != nil {
 		return err
@@ -25,6 +25,9 @@ func (c *Converter) StoreURLInDB(shortURL string, originalURL string) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
+	}
+	if rowsAffected == 0 {
+		return model.ErrorConflictURL
 	}
 	logrus.Printf("Добавлено в БД: %d строк", rowsAffected)
 	return nil
@@ -41,7 +44,7 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL) error {
 
 	insertStmt, err := tx.Prepare(`INSERT INTO urls.links (short_url, original_url)
 									VALUES ($1, $2)
-									ON CONFLICT (short_url) DO NOTHING;
+									ON CONFLICT (original_url) DO NOTHING;
 								`)
 	if err != nil {
 		return err
