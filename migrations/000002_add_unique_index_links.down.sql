@@ -1,1 +1,1 @@
-DROP INDEX IS EXISTS  links_unique_idx;
+DROP INDEX IF EXISTS links_unique_idx;
