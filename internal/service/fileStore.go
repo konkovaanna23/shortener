@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/model"
@@ -14,8 +15,13 @@ func (c *Converter) GetInfoURLFromFile() (map[string]string, error) {
 	var resultMap map[string]string
 	data, err := file.ReadFromFile(c.filePath)
 	if err != nil {
-		logrus.Errorln("ошибка получения URLs из файла:", err)
-		return nil, err
+		if os.IsNotExist(err) {
+			logrus.Warnf("файл %s не найден", c.filePath)
+			return nil, nil
+		} else {
+			logrus.Errorln("ошибка получения URLs из файла:", err)
+			return nil, err
+		}
 	} else {
 		resultMap, err = c.decodeDataToOriginalMap(data)
 		if err != nil {
@@ -62,6 +68,9 @@ func (c *Converter) StoreURLInFile(shortURL, originalURL string) (string, error)
 	if err != nil {
 		return "", err
 	}
+	if resultMap == nil {
+		resultMap = make(map[string]string)
+	}
 	shortURLCurrent, ok := resultMap[originalURL]
 	if ok {
 		return shortURLCurrent, model.ErrorConflictURL
@@ -85,8 +94,13 @@ func (c *Converter) GetOriginalURLFromFile(shortURL string) (string, error) {
 	var resultMap map[string]string
 	data, err := file.ReadFromFile(c.filePath)
 	if err != nil {
-		logrus.Errorln("ошибка получения URLs из файла:", err)
-		return "", err
+		if os.IsNotExist(err) {
+			logrus.Warnf("файл %s не найден", c.filePath)
+			return "", fmt.Errorf("файл %s не найден", c.filePath)
+		} else {
+			logrus.Errorln("ошибка получения URLs из файла:", err)
+			return "", err
+		}
 	} else {
 		resultMap, err = c.decodeDataToShortMap(data)
 		if err != nil {
@@ -139,6 +153,9 @@ func (c *Converter) StoreURLsInFile(urls []*model.DescriptionURL) error {
 	resultMap, err := c.GetInfoURLFromFile()
 	if err != nil {
 		return err
+	}
+	if resultMap == nil {
+		resultMap = make(map[string]string)
 	}
 	for _, url := range urls {
 		if value, ok := resultMap[url.Original]; ok {
