@@ -137,6 +137,9 @@ func (c *Converter) StoreURLsInFile(urls []*model.DescriptionURL) error {
 	c.fMx.Lock()
 	defer c.fMx.Unlock()
 	resultMap, err := c.GetInfoURLFromFile()
+	if err != nil {
+		return err
+	}
 	for _, url := range urls {
 		if value, ok := resultMap[url.Original]; ok {
 			url.Short = value

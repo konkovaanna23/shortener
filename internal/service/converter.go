@@ -17,9 +17,9 @@ const (
 )
 
 const (
-	MODE_STORE_DB      = "DB"
-	MODE_STORE_FILE    = "FILE"
-	MODE_STORE_STORAGE = "STORAGE"
+	ModeStoreDB      = "DB"
+	ModeStoreFile    = "FILE"
+	ModeStoreStorage = "STORAGE"
 )
 
 type Converter struct {
@@ -48,14 +48,14 @@ func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 	}
 
 	if db != nil {
-		cvrt.modeStore = MODE_STORE_DB
+		cvrt.modeStore = ModeStoreDB
 		logrus.Println("Установлен режим сохранения в БД")
 	} else {
 		if filePath != "" {
-			cvrt.modeStore = MODE_STORE_FILE
+			cvrt.modeStore = ModeStoreFile
 			logrus.Println("Установлен режим сохранения в файл")
 		} else {
-			cvrt.modeStore = MODE_STORE_STORAGE
+			cvrt.modeStore = ModeStoreStorage
 			logrus.Println("Установлен режим сохранения в хранилище")
 		}
 	}
@@ -70,15 +70,15 @@ func (c *Converter) AddURL(url string) (string, error) {
 	shortURL := c.storage.GenerateShortURL()
 	var err error
 	switch c.modeStore {
-	case MODE_STORE_DB:
+	case ModeStoreDB:
 		if shortURL, err = c.StoreURLInDB(shortURL, url); err != nil {
 			logrus.Errorln("ошибка сохранения в базу:", err)
 		}
-	case MODE_STORE_FILE:
+	case ModeStoreFile:
 		if shortURL, err = c.StoreURLInFile(shortURL, url); err != nil {
 			logrus.Errorln("ошибка сохранения в файл:", err)
 		}
-	case MODE_STORE_STORAGE:
+	case ModeStoreStorage:
 		shortURL, err = c.storage.Add(url, shortURL)
 	}
 	return c.url + "/" + shortURL, err
@@ -89,19 +89,19 @@ func (c *Converter) GetURL(shortURL string) (string, error) {
 	ok := true
 	var err error
 	switch c.modeStore {
-	case MODE_STORE_DB:
+	case ModeStoreDB:
 		URL, err = c.GetOriginalURLFromDB(shortURL)
 		if err != nil {
 			logrus.Errorln(err)
 			ok = false
 		}
-	case MODE_STORE_FILE:
+	case ModeStoreFile:
 		URL, err = c.GetOriginalURLFromFile(shortURL)
 		if err != nil {
 			logrus.Errorln(err)
 			ok = false
 		}
-	case MODE_STORE_STORAGE:
+	case ModeStoreStorage:
 		URL, ok = c.storage.Get(shortURL)
 	}
 	if !ok {
@@ -158,17 +158,17 @@ func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.Descr
 	}
 
 	switch c.modeStore {
-	case MODE_STORE_DB:
+	case ModeStoreDB:
 		err := c.TranStoreURLInDB(urls)
 		if err != nil {
 			logrus.Error("ошибка сохранения в базу:", err)
 		}
-	case MODE_STORE_FILE:
+	case ModeStoreFile:
 		err := c.StoreURLsInFile(urls)
 		if err != nil {
 			logrus.Error("ошибка сохранения в базу:", err)
 		}
-	case MODE_STORE_STORAGE:
+	case ModeStoreStorage:
 		for _, url := range urls {
 			short, _ := c.storage.Add(url.Original, url.Short)
 			url.Short = short
