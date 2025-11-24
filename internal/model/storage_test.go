@@ -9,7 +9,8 @@ import (
 func TestStorage_Get(t *testing.T) {
 	s := model.NewStorage(5)
 	sourceURL := "http://ya.ru"
-	result, _ := s.Add(sourceURL)
+	shortUrl := s.GenerateShortURL()
+	result, _ := s.Add(sourceURL, shortUrl)
 	resultURL, ok := s.Get(result)
 	if ok != true {
 		t.Errorf("URL не найден")
@@ -22,8 +23,9 @@ func TestStorage_Get(t *testing.T) {
 func TestStorage_Add(t *testing.T) {
 	s := model.NewStorage(5)
 	sourceURL := "http://ya.ru"
-	result, _ := s.Add(sourceURL)
-	if len(result) != 5 {
-		t.Errorf("Add() = %v, want %v", result, "random string 5 symbols")
+	shortUrl := s.GenerateShortURL()
+	result, _ := s.Add(sourceURL, shortUrl)
+	if result != shortUrl {
+		t.Errorf("Get() = %v, want %v", result, shortUrl)
 	}
 }
