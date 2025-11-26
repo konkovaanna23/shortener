@@ -12,6 +12,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const userIDContextKey = "userID"
+
+func GetUserID(r *http.Request) (string, bool) {
+	v := r.Context().Value(userIDContextKey)
+	id, ok := v.(string)
+	return id, ok
+}
+
 func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -21,7 +29,8 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	text := string(bodyBytes)
 	logrus.Info("POST Заданный URL:", text)
-	result, err := s.converter.AddURL(text)
+	user, _ := GetUserID(r)
+	result, err := s.converter.AddURL(text, user)
 	flagConflictError := false
 	if err != nil {
 		flagConflictError = errors.Is(err, model.ErrorConflictURL)
@@ -73,7 +82,8 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.Info("POST Заданный URL:", urlRequest.URL)
-	result, err := s.converter.AddURLForRequest(urlRequest)
+	user, _ := GetUserID(r)
+	result, err := s.converter.AddURLForRequest(urlRequest, user)
 	flagConflictError := false
 	if err != nil {
 		flagConflictError = errors.Is(err, model.ErrorConflictURL)
@@ -122,7 +132,8 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.Info("POST Заданный JSON:", string(bodyBytes))
-	result, err := s.converter.AddURLForBatch(urlDescription)
+	user, _ := GetUserID(r)
+	result, err := s.converter.AddURLForBatch(urlDescription, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -135,6 +146,30 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("POST Список сокращенных URL:", string(bodyResult))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	w.Write(bodyResult)
+
+}
+
+func (s *Server) getURLForUser(w http.ResponseWriter, r *http.Request) {
+	user, _ := GetUserID(r)
+	logrus.Info("GET Заданный user:", user)
+	result, err := s.converter.GetURLsForUser(user)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	if len(result) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	bodyResult, err := json.Marshal(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logrus.Info("POST Список сокращенных URL:", string(bodyResult))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write(bodyResult)
 
 }

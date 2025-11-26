@@ -29,6 +29,7 @@ type Converter struct {
 	modeStore string
 	filePath  string
 	fMx       sync.RWMutex
+	userURLS  *model.UserURLS
 }
 
 type URLRequest struct {
@@ -45,6 +46,7 @@ func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 		storage:  model.NewStorage(lengthURL),
 		db:       db,
 		filePath: filePath,
+		userURLS: model.NewUserURLS(),
 	}
 
 	if db != nil {
@@ -62,7 +64,7 @@ func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 	return cvrt
 }
 
-func (c *Converter) AddURL(url string) (string, error) {
+func (c *Converter) AddURL(url string, user string) (string, error) {
 	if !c.isValidURL(url) {
 		msg := fmt.Sprintf("URL [%s] не является валидным", url)
 		return "", fmt.Errorf("%s", msg)
@@ -71,15 +73,18 @@ func (c *Converter) AddURL(url string) (string, error) {
 	var err error
 	switch c.modeStore {
 	case ModeStoreDB:
-		if shortURL, err = c.StoreURLInDB(shortURL, url); err != nil {
+		url := []*model.DescriptionURL{{Short: shortURL, Original: url}}
+		if err = c.TranStoreURLInDB(url, user); err != nil {
+			shortURL = url[0].Short
 			logrus.Errorln("ошибка сохранения в базу:", err)
 		}
 	case ModeStoreFile:
-		if shortURL, err = c.StoreURLInFile(shortURL, url); err != nil {
+		if shortURL, err = c.StoreURLInFile(shortURL, url, user); err != nil {
 			logrus.Errorln("ошибка сохранения в файл:", err)
 		}
 	case ModeStoreStorage:
 		shortURL, err = c.storage.Add(url, shortURL)
+		c.userURLS.AddURLForUser(user, shortURL)
 	}
 	return c.url + "/" + shortURL, err
 }
@@ -119,11 +124,11 @@ func (c *Converter) isValidURL(input string) bool {
 	return true
 }
 
-func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
+func (c *Converter) AddURLForRequest(url *URLRequest, user string) (*URLResponse, error) {
 	if url == nil {
 		return nil, errors.New("передана пустая структура")
 	}
-	result, err := c.AddURL(url.URL)
+	result, err := c.AddURL(url.URL, user)
 	if err != nil {
 		if errors.Is(err, model.ErrorConflictURL) {
 			return &URLResponse{URLShort: result}, err
@@ -142,7 +147,7 @@ func (c *Converter) PingDB() error {
 	return nil
 }
 
-func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.DescriptionURL, error) {
+func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL, user string) ([]*model.DescriptionURL, error) {
 	var errs []error
 	for _, url := range urls {
 		if !c.isValidURL(url.Original) {
@@ -159,23 +164,64 @@ func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.Descr
 
 	switch c.modeStore {
 	case ModeStoreDB:
-		err := c.TranStoreURLInDB(urls)
+		err := c.TranStoreURLInDB(urls, user)
 		if err != nil {
 			logrus.Error("ошибка сохранения в базу:", err)
+			return nil, err
 		}
 	case ModeStoreFile:
-		err := c.StoreURLsInFile(urls)
+		err := c.StoreURLsInFile(urls, user)
 		if err != nil {
-			logrus.Error("ошибка сохранения в базу:", err)
+			logrus.Error("ошибка сохранения в файл:", err)
+			return nil, err
 		}
 	case ModeStoreStorage:
 		for _, url := range urls {
 			short, _ := c.storage.Add(url.Original, url.Short)
 			url.Short = short
+			c.userURLS.AddURLForUser(user, url.Short)
+
 		}
 	}
 	for _, url := range urls {
 		url.Original = ""
+		url.Short = c.url + "/" + url.Short
+	}
+	return urls, nil
+}
+
+func (c *Converter) convertMapToDescriptionURL(m map[string]string) []*model.DescriptionURL {
+	result := make([]*model.DescriptionURL, len(m))
+	i := 0
+	for key, value := range m {
+		result[i] = &model.DescriptionURL{Short: c.url + "/" + key, Original: value}
+		i++
+	}
+	return result
+}
+
+func (c *Converter) GetURLsForUser(user string) ([]*model.DescriptionURL, error) {
+	var urls []*model.DescriptionURL
+	var err error
+	switch c.modeStore {
+	case ModeStoreDB:
+		urls, err = c.GetInfoUserURLFromDB(user)
+		if err != nil {
+			logrus.Error("ошибка чтения из базы:", err)
+			return nil, err
+		}
+
+	case ModeStoreFile:
+		urls, err = c.GetInfoUserURLFromFile(user)
+		if err != nil {
+			logrus.Error("ошибка сохранения в базу:", err)
+		}
+	case ModeStoreStorage:
+		urlList := c.userURLS.GetURLsForUser(user)
+		resultMap := c.storage.GetURLMapForList(urlList)
+		urls = c.convertMapToDescriptionURL(resultMap)
+	}
+	for _, url := range urls {
 		url.Short = c.url + "/" + url.Short
 	}
 	return urls, nil
