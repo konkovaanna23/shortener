@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/konkovaanna23/shortener/internal/config/db"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,8 @@ func TestServer_newURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	converter := service.NewConverter("http://localhost:8080", "test.json")
+	database, _ := db.NewConnect("")
+	converter := service.NewConverter("http://localhost:8080", "test.json", database)
 	recorder := httptest.NewRecorder()
 	s := NewServer("localhost:8080", converter)
 	s.newURL(recorder, req)
@@ -45,8 +47,9 @@ func TestServer_newURL(t *testing.T) {
 }
 
 func TestServer_getURL(t *testing.T) {
+	database, _ := db.NewConnect("")
 	sourceURL := "https://google.com"
-	converter := service.NewConverter("http://localhost:8080", "test.json")
+	converter := service.NewConverter("http://localhost:8080", "test.json", database)
 	s := NewServer("localhost:8080", converter)
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
@@ -82,7 +85,8 @@ func TestServer_getURL(t *testing.T) {
 }
 
 func TestServer_newJsonURL(t *testing.T) {
-	converter := service.NewConverter("http://localhost:8080", "test.json")
+	database, _ := db.NewConnect("")
+	converter := service.NewConverter("http://localhost:8080", "test.json", database)
 	s := NewServer("localhost:8080", converter)
 
 	input := &service.URLRequest{
