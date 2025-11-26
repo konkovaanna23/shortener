@@ -150,3 +150,23 @@ func (c *Converter) PingDB() error {
 	}
 	return nil
 }
+
+func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.DescriptionURL, error) {
+	for _, url := range urls {
+		if !c.isValidURL(url.Original) {
+			msg := fmt.Sprintf("URL [%s] не является валидным", url.Original)
+			return nil, fmt.Errorf("%s", msg)
+		}
+		short := c.storage.Add(url.Original)
+		url.Short = short
+	}
+	err := c.TranStoreURLInDB(urls)
+	if err != nil {
+		logrus.Error("Ошибка сохранения в базу:", err)
+	}
+	for _, url := range urls {
+		url.Original = ""
+		url.Short = c.url + "/" + url.Short
+	}
+	return urls, nil
+}

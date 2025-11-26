@@ -32,6 +32,7 @@ func NewServer(url string, converter *service.Converter) *Server {
 	s.mux.Get("/{shorturl}", s.getURL)
 	s.mux.Get("/ping", s.ping)
 	s.mux.Post("/api/shorten", s.newJSONURL)
+	s.mux.Post("/api/shorten/batch", s.newJSONBatchURL)
 	s.srv = &http.Server{
 		Addr:    url,
 		Handler: mux,

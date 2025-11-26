@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
 )
@@ -85,4 +86,35 @@ func (s *Server) ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Ошибка чтения BODY", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+	var urlDescription []*model.DescriptionURL
+	err = json.Unmarshal(bodyBytes, &urlDescription)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logrus.Info("POST Заданный JSON:", string(bodyBytes))
+	result, err := s.converter.AddURLForBatch(urlDescription)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logrus.Info("POST Список сокращенных URL:", result)
+	bodyResult, err := json.Marshal(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(bodyResult)
+
 }
