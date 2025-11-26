@@ -1,8 +1,12 @@
 package db
 
 import (
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 )
 
 func NewConnect(dsn string) (*sqlx.DB, error) {
@@ -22,5 +26,23 @@ func Ping(db *sqlx.DB) error {
 	if err := db.Ping(); err != nil {
 		return err
 	}
+	return nil
+}
+
+func RunMigrations(dsn string) error {
+	m, err := migrate.New(
+		"file://migrations",
+		dsn,
+	)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	logrus.Println("Миграции применены")
 	return nil
 }

@@ -27,6 +27,10 @@ func main() {
 	} else {
 		logrus.Println("Подключение к базе данных успешно")
 	}
+	if err := db.RunMigrations(cfg.DSN); err != nil {
+		logrus.Error("Ошибка при установке миграций:", err)
+		database = nil
+	}
 	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath, database)
 	server := handler.NewServer(cfg.URLserver, converter)
 

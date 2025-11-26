@@ -37,21 +37,28 @@ func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 		storage: model.NewStorage(lengthURL),
 		db:      db,
 	}
-	if filePath != "" {
-		data, err := file.ReadFromFile(filePath)
+	var resultMap map[string]string
+	var err error
+	if db != nil {
+		resultMap, err = cvrt.GetInfoURLFromDB()
 		if err != nil {
-			logrus.Errorln(err)
-
-		} else {
-			resultMap, err := cvrt.decodeDataToMap(data)
-			if err != nil {
-				logrus.Errorln(err)
-			} else {
-				cvrt.storage.InitStorage(resultMap)
-			}
+			logrus.Errorln("ошибка получения URLs из базы:", err)
 		}
+	} else {
+		if filePath != "" {
+			data, err := file.ReadFromFile(filePath)
+			if err != nil {
+				logrus.Errorln("ошибка получения URLs из файла:", err)
+			} else {
+				resultMap, err = cvrt.decodeDataToMap(data)
+				if err != nil {
+					logrus.Errorln("ошибка перкодирования в map:", err)
+				}
+			}
 
+		}
 	}
+	cvrt.storage.InitStorage(resultMap)
 	return cvrt
 }
 
@@ -61,6 +68,12 @@ func (c *Converter) AddURL(url string) (string, error) {
 		return "", fmt.Errorf("%s", msg)
 	}
 	result := c.storage.Add(url)
+	if c.db != nil {
+		err := c.StoreURLInDB(result, url)
+		if err != nil {
+			logrus.Errorln("ошибка сохранения в базу:", err)
+		}
+	}
 	return c.url + "/" + result, nil
 }
 
@@ -93,7 +106,7 @@ func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
 }
 
 func (c *Converter) decodeDataToMap(data []byte) (map[string]string, error) {
-	result := make(map[string]string)
+	var result map[string]string
 	if len(data) == 0 {
 		return nil, errors.New("данные не переданы")
 	} else {
@@ -101,11 +114,17 @@ func (c *Converter) decodeDataToMap(data []byte) (map[string]string, error) {
 		if err := json.Unmarshal(data, &urls); err != nil {
 			return nil, err
 		}
-		for _, desc := range urls {
-			result[desc.Short] = desc.Original
-		}
+		result = c.convertDescriptionURLToMap(urls)
 	}
 	return result, nil
+}
+
+func (c *Converter) convertDescriptionURLToMap(urls []*model.DescriptionURL) map[string]string {
+	result := make(map[string]string)
+	for _, desc := range urls {
+		result[desc.Short] = desc.Original
+	}
+	return result
 }
 
 func (c *Converter) encodeMapToData() ([]byte, error) {
