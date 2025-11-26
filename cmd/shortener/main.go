@@ -2,23 +2,19 @@ package main
 
 import (
 	"context"
+	"os/signal"
+	"syscall"
+
 	"github.com/konkovaanna23/shortener/internal/config"
 	"github.com/konkovaanna23/shortener/internal/config/db"
-	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/handler"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	cfg := config.GetConfig()
 	database, err := db.NewConnect(cfg.DSN)
@@ -26,11 +22,12 @@ func main() {
 		logrus.Error("Ошибка при подключении к базе данных:", err)
 	} else {
 		logrus.Println("Подключение к базе данных успешно")
+		if err := db.RunMigrations(cfg.DSN); err != nil {
+			logrus.Error("Ошибка при установке миграций:", err)
+			database = nil
+		}
 	}
-	if err := db.RunMigrations(cfg.DSN); err != nil {
-		logrus.Error("Ошибка при установке миграций:", err)
-		database = nil
-	}
+
 	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath, database)
 	server := handler.NewServer(cfg.URLserver, converter)
 
@@ -41,18 +38,7 @@ func main() {
 		}
 	}()
 
-	<-sigChan
-
-	data, err := converter.GetAllData()
-	if err != nil {
-		logrus.Error("Ошибка при получении данных для сохранения:", err)
-	} else {
-		if err := file.SaveToFile(cfg.FilePath, data); err != nil {
-			logrus.Error("Ошибка сохранения в файл:", err)
-		} else {
-			logrus.Println("Данные сохранены в файл:", cfg.FilePath)
-		}
-	}
+	<-ctx.Done()
 	logrus.Println("Сервер остановлен")
 
 }

@@ -1,33 +1,49 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
+
 	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/sirupsen/logrus"
 )
 
-func (c *Converter) GetInfoURLFromDB() (map[string]string, error) {
-	urls := []*model.DescriptionURL{}
-	if err := c.db.Select(&urls, "SELECT uuid as id, short_url as short, original_url as original FROM urls.links"); err != nil {
-		return nil, err
+func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
+	fmt.Println(shortURL)
+	var resultOriginal string
+	err := c.db.QueryRow(` SELECT original_url 
+						   FROM urls.links 
+						   WHERE short_url=$1; `, shortURL).Scan(&resultOriginal)
+	fmt.Println(err)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("не существует оригинально URL для %s", shortURL)
+		}
+		return "", err
 	}
-	result := c.convertDescriptionURLToMap(urls)
-	return result, nil
+	return resultOriginal, nil
 }
 
-func (c *Converter) StoreURLInDB(shortURL string, originalURL string) error {
-	result, err := c.db.Exec(`INSERT INTO urls.links (short_url, original_url)
-								VALUES ($1, $2)
-								ON CONFLICT (short_url) DO NOTHING;
-							 `, shortURL, originalURL)
+func (c *Converter) StoreURLInDB(shortURL, originalURL string) (string, error) {
+	var resultShort string
+
+	err := c.db.QueryRow(`
+        INSERT INTO urls.links (short_url, original_url)
+        VALUES ($1, $2)
+        ON CONFLICT (original_url) DO UPDATE
+		SET short_url = urls.links.short_url
+        RETURNING short_url;
+    `, shortURL, originalURL).Scan(&resultShort)
+
 	if err != nil {
-		return err
+		return "", err
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
+
+	if shortURL != resultShort {
+		return resultShort, model.ErrorConflictURL
 	}
-	logrus.Printf("Добавлено в БД: %d строк", rowsAffected)
-	return nil
+	return resultShort, nil
 }
 
 func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL) error {
@@ -41,14 +57,16 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL) error {
 
 	insertStmt, err := tx.Prepare(`INSERT INTO urls.links (short_url, original_url)
 									VALUES ($1, $2)
-									ON CONFLICT (short_url) DO NOTHING;
+									ON CONFLICT (original_url) DO UPDATE
+									SET short_url = urls.links.short_url
+									RETURNING short_url;
 								`)
 	if err != nil {
 		return err
 	}
 	defer insertStmt.Close()
 	for _, url := range urls {
-		if _, err := insertStmt.Exec(url.Short, url.Original); err != nil {
+		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&url.Short); err != nil {
 			_ = tx.Rollback()
 			return err
 		}

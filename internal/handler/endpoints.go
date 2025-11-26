@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
@@ -21,13 +22,23 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	text := string(bodyBytes)
 	logrus.Info("POST Заданный URL:", text)
 	result, err := s.converter.AddURL(text)
+	flagConflictError := false
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		flagConflictError = errors.Is(err, model.ErrorConflictURL)
+		if !flagConflictError {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 	}
 	logrus.Info("POST Сокращенный URL:", result)
 	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
+	if flagConflictError {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
+
 	w.Write([]byte(result))
 
 }
@@ -63,9 +74,14 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 	}
 	logrus.Info("POST Заданный URL:", urlRequest.URL)
 	result, err := s.converter.AddURLForRequest(urlRequest)
+	flagConflictError := false
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		flagConflictError = errors.Is(err, model.ErrorConflictURL)
+		if !flagConflictError {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 	}
 	logrus.Info("POST Сокращенный URL:", result.URLShort)
 	bodyResult, err := json.Marshal(result)
@@ -74,7 +90,11 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	if flagConflictError {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	w.Write(bodyResult)
 
 }
@@ -107,12 +127,12 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	logrus.Info("POST Список сокращенных URL:", result)
 	bodyResult, err := json.Marshal(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	logrus.Info("POST Список сокращенных URL:", string(bodyResult))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(bodyResult)

@@ -1,14 +1,13 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/konkovaanna23/shortener/internal/config/db"
-	"github.com/konkovaanna23/shortener/internal/file"
 	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/sirupsen/logrus"
 )
@@ -17,10 +16,19 @@ const (
 	lengthURL = 6
 )
 
+const (
+	ModeStoreDB      = "DB"
+	ModeStoreFile    = "FILE"
+	ModeStoreStorage = "STORAGE"
+)
+
 type Converter struct {
-	url     string
-	storage *model.Storage
-	db      *sqlx.DB
+	url       string
+	storage   *model.Storage
+	db        *sqlx.DB
+	modeStore string
+	filePath  string
+	fMx       sync.RWMutex
 }
 
 type URLRequest struct {
@@ -33,32 +41,24 @@ type URLResponse struct {
 
 func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 	cvrt := &Converter{
-		url:     serverURL,
-		storage: model.NewStorage(lengthURL),
-		db:      db,
+		url:      serverURL,
+		storage:  model.NewStorage(lengthURL),
+		db:       db,
+		filePath: filePath,
 	}
-	var resultMap map[string]string
-	var err error
+
 	if db != nil {
-		resultMap, err = cvrt.GetInfoURLFromDB()
-		if err != nil {
-			logrus.Errorln("ошибка получения URLs из базы:", err)
-		}
+		cvrt.modeStore = ModeStoreDB
+		logrus.Println("Установлен режим сохранения в БД")
 	} else {
 		if filePath != "" {
-			data, err := file.ReadFromFile(filePath)
-			if err != nil {
-				logrus.Errorln("ошибка получения URLs из файла:", err)
-			} else {
-				resultMap, err = cvrt.decodeDataToMap(data)
-				if err != nil {
-					logrus.Errorln("ошибка перкодирования в map:", err)
-				}
-			}
-
+			cvrt.modeStore = ModeStoreFile
+			logrus.Println("Установлен режим сохранения в файл")
+		} else {
+			cvrt.modeStore = ModeStoreStorage
+			logrus.Println("Установлен режим сохранения в хранилище")
 		}
 	}
-	cvrt.storage.InitStorage(resultMap)
 	return cvrt
 }
 
@@ -67,18 +67,43 @@ func (c *Converter) AddURL(url string) (string, error) {
 		msg := fmt.Sprintf("URL [%s] не является валидным", url)
 		return "", fmt.Errorf("%s", msg)
 	}
-	result := c.storage.Add(url)
-	if c.db != nil {
-		err := c.StoreURLInDB(result, url)
-		if err != nil {
+	shortURL := c.storage.GenerateShortURL()
+	var err error
+	switch c.modeStore {
+	case ModeStoreDB:
+		if shortURL, err = c.StoreURLInDB(shortURL, url); err != nil {
 			logrus.Errorln("ошибка сохранения в базу:", err)
 		}
+	case ModeStoreFile:
+		if shortURL, err = c.StoreURLInFile(shortURL, url); err != nil {
+			logrus.Errorln("ошибка сохранения в файл:", err)
+		}
+	case ModeStoreStorage:
+		shortURL, err = c.storage.Add(url, shortURL)
 	}
-	return c.url + "/" + result, nil
+	return c.url + "/" + shortURL, err
 }
 
 func (c *Converter) GetURL(shortURL string) (string, error) {
-	URL, ok := c.storage.Get(shortURL)
+	var URL string
+	ok := true
+	var err error
+	switch c.modeStore {
+	case ModeStoreDB:
+		URL, err = c.GetOriginalURLFromDB(shortURL)
+		if err != nil {
+			logrus.Errorln(err)
+			ok = false
+		}
+	case ModeStoreFile:
+		URL, err = c.GetOriginalURLFromFile(shortURL)
+		if err != nil {
+			logrus.Errorln(err)
+			ok = false
+		}
+	case ModeStoreStorage:
+		URL, ok = c.storage.Get(shortURL)
+	}
 	if !ok {
 		msg := fmt.Sprintf("URL по короткому URL [%s] не существует", shortURL)
 		return "", fmt.Errorf("%s", msg)
@@ -100,47 +125,13 @@ func (c *Converter) AddURLForRequest(url *URLRequest) (*URLResponse, error) {
 	}
 	result, err := c.AddURL(url.URL)
 	if err != nil {
-		return nil, err
-	}
-	return &URLResponse{URLShort: result}, nil
-}
-
-func (c *Converter) decodeDataToMap(data []byte) (map[string]string, error) {
-	var result map[string]string
-	if len(data) == 0 {
-		return nil, errors.New("данные не переданы")
-	} else {
-		var urls []*model.DescriptionURL
-		if err := json.Unmarshal(data, &urls); err != nil {
+		if errors.Is(err, model.ErrorConflictURL) {
+			return &URLResponse{URLShort: result}, err
+		} else {
 			return nil, err
 		}
-		result = c.convertDescriptionURLToMap(urls)
 	}
-	return result, nil
-}
-
-func (c *Converter) convertDescriptionURLToMap(urls []*model.DescriptionURL) map[string]string {
-	result := make(map[string]string)
-	for _, desc := range urls {
-		result[desc.Short] = desc.Original
-	}
-	return result
-}
-
-func (c *Converter) encodeMapToData() ([]byte, error) {
-	result := c.storage.GetAllURLMap()
-	if len(result) != 0 {
-		list := model.NewListURL()
-		for key, value := range result {
-			list.AddItеm(&model.DescriptionURL{Short: key, Original: value})
-		}
-		return json.Marshal(list.URLs)
-	}
-	return nil, nil
-}
-
-func (c *Converter) GetAllData() ([]byte, error) {
-	return c.encodeMapToData()
+	return &URLResponse{URLShort: result}, nil
 }
 
 func (c *Converter) PingDB() error {
@@ -152,17 +143,36 @@ func (c *Converter) PingDB() error {
 }
 
 func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL) ([]*model.DescriptionURL, error) {
+	var errs []error
 	for _, url := range urls {
 		if !c.isValidURL(url.Original) {
-			msg := fmt.Sprintf("URL [%s] не является валидным", url.Original)
-			return nil, fmt.Errorf("%s", msg)
+			errs = append(errs, fmt.Errorf("URL [%s] не является валидным", url.Original))
 		}
-		short := c.storage.Add(url.Original)
-		url.Short = short
 	}
-	err := c.TranStoreURLInDB(urls)
-	if err != nil {
-		logrus.Error("Ошибка сохранения в базу:", err)
+	if len(errs) != 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	for _, url := range urls {
+		url.Short = c.storage.GenerateShortURL()
+	}
+
+	switch c.modeStore {
+	case ModeStoreDB:
+		err := c.TranStoreURLInDB(urls)
+		if err != nil {
+			logrus.Error("ошибка сохранения в базу:", err)
+		}
+	case ModeStoreFile:
+		err := c.StoreURLsInFile(urls)
+		if err != nil {
+			logrus.Error("ошибка сохранения в базу:", err)
+		}
+	case ModeStoreStorage:
+		for _, url := range urls {
+			short, _ := c.storage.Add(url.Original, url.Short)
+			url.Short = short
+		}
 	}
 	for _, url := range urls {
 		url.Original = ""
