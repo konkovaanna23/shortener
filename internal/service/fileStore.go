@@ -60,8 +60,6 @@ func (c *Converter) StoreURLInFile(shortURL, originalURL, user string) (string, 
 func (c *Converter) GetOriginalURLFromFile(shortURL string) (string, error) {
 	c.fMx.RLock()
 	defer c.fMx.RUnlock()
-	c.fMx.Lock()
-	defer c.fMx.Unlock()
 	sourceURLs, err := c.getInfoURLFromFile()
 	if err != nil {
 		return "", err
