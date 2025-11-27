@@ -7,18 +7,11 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/handler/middleware"
 	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
 )
-
-const userIDContextKey = "userID"
-
-func GetUserID(r *http.Request) (string, bool) {
-	v := r.Context().Value(userIDContextKey)
-	id, ok := v.(string)
-	return id, ok
-}
 
 func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
@@ -28,7 +21,7 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	text := string(bodyBytes)
-	user, _ := GetUserID(r)
+	user, _ := middleware.GetUserID(r.Context())
 	logrus.Info("POST Заданный URL:", text, " заданный user:", user)
 	result, err := s.converter.AddURL(text, user)
 	flagConflictError := false
@@ -81,7 +74,7 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	user, _ := GetUserID(r)
+	user, _ := middleware.GetUserID(r.Context())
 	logrus.Info("POST JSONUrl Заданный URL:", urlRequest.URL, " заданный user:", user)
 	result, err := s.converter.AddURLForRequest(urlRequest, user)
 	flagConflictError := false
@@ -131,7 +124,7 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	user, _ := GetUserID(r)
+	user, _ := middleware.GetUserID(r.Context())
 	logrus.Info("POST Batch Заданный JSON:", string(bodyBytes), " заданный user:", user)
 	result, err := s.converter.AddURLForBatch(urlDescription, user)
 	if err != nil {
@@ -151,7 +144,7 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getURLForUser(w http.ResponseWriter, r *http.Request) {
-	user, _ := GetUserID(r)
+	user, _ := middleware.GetUserID(r.Context())
 	logrus.Info("GET UrlForUser Заданный user:", user)
 	result, err := s.converter.GetURLsForUser(user)
 	if err != nil {

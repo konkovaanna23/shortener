@@ -13,13 +13,21 @@ import (
 	"strings"
 )
 
-const cookieName = "user"
-const userIDContextKey = "userID"
+type ctxKey struct{ key string }
 
-func GetUserID(r *http.Request) (string, bool) {
-	v := r.Context().Value(userIDContextKey)
-	id, ok := v.(string)
-	return id, ok
+var userIDKey = ctxKey{"user_id"}
+
+const cookieName = "user"
+
+// GetUserID извлекает userID из контекста
+func GetUserID(ctx context.Context) (string, bool) {
+	userID, ok := ctx.Value(userIDKey).(string)
+	return userID, ok
+}
+
+func SetUserID(r *http.Request, userID string) *http.Request {
+	ctx := context.WithValue(r.Context(), userIDKey, userID)
+	return r.WithContext(ctx)
 }
 
 func sign(key string, loadString string) string {
@@ -100,8 +108,7 @@ func AuthMiddleware(key string) func(http.Handler) http.Handler {
 				})
 			}
 
-			ctx := context.WithValue(r.Context(), userIDContextKey, userID)
-			r = r.WithContext(ctx)
+			r = SetUserID(r, userID)
 
 			next.ServeHTTP(w, r)
 		})
