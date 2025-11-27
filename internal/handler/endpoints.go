@@ -28,8 +28,8 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	text := string(bodyBytes)
-	logrus.Info("POST Заданный URL:", text)
 	user, _ := GetUserID(r)
+	logrus.Info("POST Заданный URL:", text, " заданный user:", user)
 	result, err := s.converter.AddURL(text, user)
 	flagConflictError := false
 	if err != nil {
@@ -81,8 +81,8 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	logrus.Info("POST JSONUrl Заданный URL:", urlRequest.URL)
 	user, _ := GetUserID(r)
+	logrus.Info("POST JSONUrl Заданный URL:", urlRequest.URL, " заданный user:", user)
 	result, err := s.converter.AddURLForRequest(urlRequest, user)
 	flagConflictError := false
 	if err != nil {
@@ -131,8 +131,8 @@ func (s *Server) newJSONBatchURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	logrus.Info("POST Batch Заданный JSON:", string(bodyBytes))
 	user, _ := GetUserID(r)
+	logrus.Info("POST Batch Заданный JSON:", string(bodyBytes), " заданный user:", user)
 	result, err := s.converter.AddURLForBatch(urlDescription, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
