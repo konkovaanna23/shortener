@@ -78,8 +78,9 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) 
 			_ = tx.Rollback()
 			return err
 		}
-		if url.UserID != "" {
-			_, err = insertXMapStmt.Exec(url.UserID, linkID)
+
+		if user != "" {
+			_, err = insertXMapStmt.Exec(user, linkID)
 			if err != nil {
 				_ = tx.Rollback()
 				return err
