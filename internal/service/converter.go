@@ -75,12 +75,17 @@ func (c *Converter) AddURL(url string, user string) (string, error) {
 	case ModeStoreDB:
 		url := []*model.DescriptionURL{{Short: shortURL, Original: url}}
 		if err = c.TranStoreURLInDB(url, user); err != nil {
-			shortURL = url[0].Short
 			logrus.Errorln("ошибка сохранения в базу:", err)
+			return "", err
 		}
+		if shortURL != url[0].Short {
+			err = model.ErrorConflictURL
+		}
+		shortURL = url[0].Short
 	case ModeStoreFile:
 		if shortURL, err = c.StoreURLInFile(shortURL, url, user); err != nil {
 			logrus.Errorln("ошибка сохранения в файл:", err)
+			return "", err
 		}
 	case ModeStoreStorage:
 		shortURL, err = c.storage.Add(url, shortURL)
