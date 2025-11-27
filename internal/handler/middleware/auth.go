@@ -97,7 +97,6 @@ func AuthMiddleware(key string) func(http.Handler) http.Handler {
 					Path:     "/",
 					HttpOnly: true,
 					Secure:   true,
-					SameSite: http.SameSiteLaxMode,
 				})
 			}
 
