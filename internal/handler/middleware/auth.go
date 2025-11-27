@@ -96,7 +96,7 @@ func AuthMiddleware(key string) func(http.Handler) http.Handler {
 					Value:    value,
 					Path:     "/",
 					HttpOnly: true,
-					Secure:   true,
+					Secure:   false,
 				})
 			}
 
