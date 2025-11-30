@@ -6,6 +6,7 @@ type DescriptionURL struct {
 	Original    string `json:"original_url,omitempty" db:"original_url,omitempty"`
 	Correlation string `json:"correlation_id,omitempty"`
 	UserID      string `json:"user_id,omitempty" db:"user_id,omitempty"`
+	IsDeleted   *bool  `json:"is_deleted,omitempty" db:"is_deleted,omitempty"`
 }
 
 func (d *DescriptionURL) Copy() *DescriptionURL {

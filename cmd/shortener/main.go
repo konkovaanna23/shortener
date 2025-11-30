@@ -28,7 +28,7 @@ func main() {
 		}
 	}
 
-	converter := service.NewConverter(cfg.URLforShort, cfg.FilePath, database)
+	converter := service.NewConverter(ctx, cfg.URLforShort, cfg.FilePath, database)
 	server := handler.NewServer(cfg.URLserver, converter)
 
 	go func() {

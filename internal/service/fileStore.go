@@ -69,6 +69,9 @@ func (c *Converter) GetOriginalURLFromFile(shortURL string) (string, error) {
 	}
 	for _, url := range sourceURLs {
 		if url.Short == shortURL {
+			if url.IsDeleted != nil && *url.IsDeleted {
+				return "", model.ErrorDeletedURL
+			}
 			return url.Original, nil
 		}
 	}
@@ -122,7 +125,7 @@ func (c *Converter) GetInfoUserURLFromFile(user string) ([]*model.DescriptionURL
 	}
 	urlForUser := make([]*model.DescriptionURL, 0)
 	for _, url := range sourceURLs {
-		if url.UserID == user {
+		if url.UserID == user && (url.IsDeleted == nil || (url.IsDeleted != nil && !*url.IsDeleted)) {
 			u := url.Copy()
 			u.UserID = ""
 			u.ID = 0
@@ -131,4 +134,39 @@ func (c *Converter) GetInfoUserURLFromFile(user string) ([]*model.DescriptionURL
 		}
 	}
 	return urlForUser, nil
+}
+
+func (c *Converter) DeleteURLsFromFile(urls []*model.DescriptionURL) error {
+	c.fMx.Lock()
+	defer c.fMx.Unlock()
+	sourceURLs, err := c.getInfoURLFromFile()
+	if err != nil {
+		return err
+	}
+	if sourceURLs == nil {
+		sourceURLs = make([]*model.DescriptionURL, 0)
+	}
+	for _, url := range urls {
+		flagFind := false
+		for _, sourceURL := range sourceURLs {
+			if sourceURL.Short == url.Short && sourceURL.UserID == url.UserID {
+				flagTrue := true
+				sourceURL.IsDeleted = &flagTrue
+				flagFind = true
+				break
+			}
+		}
+		if !flagFind {
+			logrus.Infof("Не существует URL=%s у пользователя %s", url.Short, url.UserID)
+		}
+	}
+	data, err := json.Marshal(sourceURLs)
+	if err != nil {
+		return err
+	}
+	err = file.SaveToFile(c.filePath, data)
+	if err != nil {
+		return err
+	}
+	return nil
 }

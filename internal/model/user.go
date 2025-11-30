@@ -46,3 +46,17 @@ func (lu *UserURLS) GetURLsForUser(userID string) []string {
 		return nil
 	}
 }
+
+func (lu *UserURLS) ExistURLForUser(userID string, url string) bool {
+	if userID == "" {
+		return false
+	}
+	lu.mx.RLock()
+	defer lu.mx.RUnlock()
+	for _, u := range lu.userURLS[userID] {
+		if u == url {
+			return true
+		}
+	}
+	return false
+}

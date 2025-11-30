@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -22,7 +23,7 @@ func TestServer_newURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	database, _ := db.NewConnect("")
-	converter := service.NewConverter("http://localhost:8080", "", database)
+	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database)
 	recorder := httptest.NewRecorder()
 	s := NewServer("localhost:8080", converter)
 	s.newURL(recorder, req)
@@ -49,7 +50,7 @@ func TestServer_newURL(t *testing.T) {
 func TestServer_getURL(t *testing.T) {
 	database, _ := db.NewConnect("")
 	sourceURL := "https://google.com"
-	converter := service.NewConverter("http://localhost:8080", "", database)
+	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database)
 	s := NewServer("localhost:8080", converter)
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
@@ -86,7 +87,7 @@ func TestServer_getURL(t *testing.T) {
 
 func TestServer_newJsonURL(t *testing.T) {
 	database, _ := db.NewConnect("")
-	converter := service.NewConverter("http://localhost:8080", "", database)
+	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database)
 	s := NewServer("localhost:8080", converter)
 
 	input := &service.URLRequest{

@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"slices"
 	"sync"
@@ -9,19 +10,22 @@ import (
 
 var (
 	ErrorConflictURL = errors.New("conflict url")
+	ErrorDeletedURL  = errors.New("deleted url")
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 type Storage struct {
-	length int
-	urls   sync.Map
+	length     int
+	urls       sync.Map
+	deleteURLs sync.Map
 }
 
 func NewStorage(length int) *Storage {
 	return &Storage{
-		length: length,
-		urls:   sync.Map{}, //map[shortURL]originalURL
+		length:     length,
+		urls:       sync.Map{}, //map[shortURL]originalURL
+		deleteURLs: sync.Map{},
 	}
 }
 
@@ -51,6 +55,13 @@ func (s *Storage) Add(url string, short string) (string, error) {
 
 }
 
+func (s *Storage) Delete(short string) {
+	_, ok := s.urls.Load(short)
+	if ok {
+		s.deleteURLs.Store(short, true)
+	}
+}
+
 func (s *Storage) randomString(letters string) string {
 	b := make([]byte, s.length)
 	for i := range b {
@@ -63,12 +74,17 @@ func (s *Storage) GenerateShortURL() string {
 	return s.randomString(letters)
 }
 
-func (s *Storage) Get(shortURL string) (string, bool) {
+func (s *Storage) Get(shortURL string) (string, error) {
 	URL, ok := s.urls.Load(shortURL)
 	if !ok {
-		return "", ok
+		msg := fmt.Sprintf("URL по короткому URL [%s] не существует", shortURL)
+		return "", fmt.Errorf("%s", msg)
 	}
-	return URL.(string), ok
+	_, ok = s.deleteURLs.Load(shortURL)
+	if ok {
+		return "", ErrorDeletedURL
+	}
+	return URL.(string), nil
 }
 
 func (s *Storage) GetAllURLMap() map[string]string {
@@ -88,7 +104,10 @@ func (s *Storage) GetURLMapForList(list []string) map[string]string {
 		k := key.(string)
 		v := value.(string)
 		if slices.Contains(list, k) {
-			resultMap[k] = v
+			_, ok := s.deleteURLs.Load(k)
+			if !ok {
+				resultMap[k] = v
+			}
 		}
 		return true
 	})

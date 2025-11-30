@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/konkovaanna23/shortener/internal/config/db"
@@ -13,7 +15,10 @@ import (
 )
 
 const (
-	lengthURL = 6
+	lengthURL      = 6
+	buferSize      = 1000
+	batchSize      = 20
+	timeFluchBatch = 30
 )
 
 const (
@@ -30,6 +35,7 @@ type Converter struct {
 	filePath  string
 	fMx       sync.RWMutex
 	userURLS  *model.UserURLS
+	inputChan chan *model.DescriptionURL
 }
 
 type URLRequest struct {
@@ -40,13 +46,14 @@ type URLResponse struct {
 	URLShort string `json:"result"`
 }
 
-func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
+func NewConverter(ctx context.Context, serverURL string, filePath string, db *sqlx.DB) *Converter {
 	cvrt := &Converter{
-		url:      serverURL,
-		storage:  model.NewStorage(lengthURL),
-		db:       db,
-		filePath: filePath,
-		userURLS: model.NewUserURLS(),
+		url:       serverURL,
+		storage:   model.NewStorage(lengthURL),
+		db:        db,
+		filePath:  filePath,
+		userURLS:  model.NewUserURLS(),
+		inputChan: make(chan *model.DescriptionURL, buferSize),
 	}
 
 	if db != nil {
@@ -61,6 +68,7 @@ func NewConverter(serverURL string, filePath string, db *sqlx.DB) *Converter {
 			logrus.Println("Установлен режим сохранения в хранилище")
 		}
 	}
+	go cvrt.runProcessDeleteUrl(ctx, cvrt.inputChan, batchSize, time.Duration(timeFluchBatch*time.Second))
 	return cvrt
 }
 
@@ -78,9 +86,6 @@ func (c *Converter) AddURL(url string, user string) (string, error) {
 			logrus.Errorln("ошибка сохранения в базу:", err)
 			return "", err
 		}
-		if shortURL != url[0].Short {
-			err = model.ErrorConflictURL
-		}
 		shortURL = url[0].Short
 	case ModeStoreFile:
 		if shortURL, err = c.StoreURLInFile(shortURL, url, user); err != nil {
@@ -96,27 +101,25 @@ func (c *Converter) AddURL(url string, user string) (string, error) {
 
 func (c *Converter) GetURL(shortURL string) (string, error) {
 	var URL string
-	ok := true
 	var err error
 	switch c.modeStore {
 	case ModeStoreDB:
 		URL, err = c.GetOriginalURLFromDB(shortURL)
 		if err != nil {
 			logrus.Errorln(err)
-			ok = false
+			return "", err
 		}
 	case ModeStoreFile:
 		URL, err = c.GetOriginalURLFromFile(shortURL)
 		if err != nil {
 			logrus.Errorln(err)
-			ok = false
+			return "", err
 		}
 	case ModeStoreStorage:
-		URL, ok = c.storage.Get(shortURL)
-	}
-	if !ok {
-		msg := fmt.Sprintf("URL по короткому URL [%s] не существует", shortURL)
-		return "", fmt.Errorf("%s", msg)
+		URL, err = c.storage.Get(shortURL)
+		if err != nil {
+			return "", err
+		}
 	}
 	return URL, nil
 }
@@ -219,7 +222,7 @@ func (c *Converter) GetURLsForUser(user string) ([]*model.DescriptionURL, error)
 	case ModeStoreFile:
 		urls, err = c.GetInfoUserURLFromFile(user)
 		if err != nil {
-			logrus.Error("ошибка сохранения в базу:", err)
+			logrus.Error("ошибка чтения из файла:", err)
 		}
 	case ModeStoreStorage:
 		urlList := c.userURLS.GetURLsForUser(user)
@@ -230,4 +233,92 @@ func (c *Converter) GetURLsForUser(user string) ([]*model.DescriptionURL, error)
 		url.Short = c.url + "/" + url.Short
 	}
 	return urls, nil
+}
+
+func (c *Converter) DeleteURLForUser(url string, user string) error {
+	select {
+	case c.inputChan <- &model.DescriptionURL{Short: url, UserID: user}:
+	default:
+		msg := "Буфер переполнен"
+		logrus.Info(msg)
+		return errors.New(msg)
+	}
+	return nil
+}
+
+func (c *Converter) flushDeleteUrl(batch []*model.DescriptionURL) {
+	if len(batch) == 0 {
+		return
+	}
+
+	c.DeleteURLs(batch)
+
+	batch = batch[:0]
+
+}
+
+func (c *Converter) runProcessDeleteUrl(ctx context.Context, deletes <-chan *model.DescriptionURL, batchSize int, flushTimeout time.Duration) {
+	logrus.Info("Старт процесса обновления удалённых URL")
+
+	batch := make([]*model.DescriptionURL, 0, batchSize)
+	timer := time.NewTimer(flushTimeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			logrus.Infoln("Отмена контекста в процессе обновления удалённых URL")
+			c.flushDeleteUrl(batch)
+			return
+
+		case del, ok := <-deletes:
+			if !ok {
+				logrus.Infoln("Канал для удаления данных закрыт")
+				c.flushDeleteUrl(batch)
+				return
+			}
+
+			batch = append(batch, del)
+			if len(batch) == cap(batch) {
+				c.flushDeleteUrl(batch)
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(flushTimeout)
+			}
+
+		case <-timer.C:
+			c.flushDeleteUrl(batch)
+			timer.Reset(flushTimeout)
+		}
+	}
+}
+
+func (c *Converter) DeleteURLs(urls []*model.DescriptionURL) error {
+	switch c.modeStore {
+	case ModeStoreDB:
+		err := c.TranDeleteURLsFromDB(urls)
+		if err != nil {
+			logrus.Error("ошибка удаления из базы:", err)
+			return err
+		}
+
+	case ModeStoreFile:
+		err := c.DeleteURLsFromFile(urls)
+		if err != nil {
+			logrus.Error("ошибка удаления из файла:", err)
+		}
+	case ModeStoreStorage:
+		for _, url := range urls {
+			if c.userURLS.ExistURLForUser(url.UserID, url.Short) {
+				c.storage.Delete(url.Short)
+			} else {
+				logrus.Infoln("Не существует URL=%s у пользователя %s", url.Short, url.UserID)
+			}
+		}
+	}
+	return nil
 }

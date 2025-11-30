@@ -12,9 +12,10 @@ import (
 func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
 	fmt.Println(shortURL)
 	var resultOriginal string
-	err := c.db.QueryRow(` SELECT original_url 
+	var resultIsDeleted bool
+	err := c.db.QueryRow(` SELECT original_url, is_deleted
 						   FROM urls.links 
-						   WHERE short_url=$1; `, shortURL).Scan(&resultOriginal)
+						   WHERE short_url=$1; `, shortURL).Scan(&resultOriginal, &resultIsDeleted)
 	fmt.Println(err)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -22,10 +23,14 @@ func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
 		}
 		return "", err
 	}
+	if resultIsDeleted {
+		return "", model.ErrorDeletedURL
+	}
 	return resultOriginal, nil
 }
 
 func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) error {
+	var errConflict error
 	tx, err := c.db.Beginx()
 	if err != nil {
 		return err
@@ -73,10 +78,15 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) 
 	}
 	for _, url := range urls {
 		var linkID string
-
-		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&url.Short, &linkID); err != nil {
+		var urlShort string
+		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&urlShort, &linkID); err != nil {
 			_ = tx.Rollback()
 			return err
+		}
+
+		if urlShort != url.Short {
+			url.Short = urlShort
+			errConflict = model.ErrorConflictURL
 		}
 
 		if user != "" {
@@ -93,7 +103,7 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) 
 	}
 
 	logrus.Printf("Данные в БД успешно обновлены")
-	return nil
+	return errConflict
 }
 
 func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, error) {
@@ -103,7 +113,7 @@ func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, 
         SELECT  l.short_url, l.original_url
         FROM urls.links_users_xmap x
         INNER JOIN urls.links l ON l.uuid = x.url_id 
-		WHERE x.user_id = $1
+		WHERE x.user_id = $1 and l.is_deleted = false
     `
 
 	if err := c.db.Select(&result, query, user); err != nil {
@@ -111,4 +121,58 @@ func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, 
 	}
 
 	return result, nil
+}
+
+func (c *Converter) TranDeleteURLsFromDB(urls []*model.DescriptionURL) error {
+	tx, err := c.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	stmt, err := tx.Preparex(`
+		UPDATE urls.links 
+		SET is_deleted = true 
+		WHERE short_url = $1 
+		  AND uuid IN (
+		    SELECT url_id 
+		    FROM urls.links_users_xmap 
+		    WHERE user_id = $2
+		  )
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, url := range urls {
+		if url.Short == "" || url.UserID == "" {
+			return fmt.Errorf("не задан url или user")
+		}
+
+		result, err := stmt.Exec(url.Short, url.UserID)
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+
+		if rowsAffected == 0 {
+			logrus.Infof("URL=%s не существует или не принадлежит пользователю=%s", url.Short, url.UserID)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	logrus.Info("URL успешны удалены")
+	return nil
 }
