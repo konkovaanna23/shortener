@@ -68,7 +68,7 @@ func NewConverter(ctx context.Context, serverURL string, filePath string, db *sq
 			logrus.Println("Установлен режим сохранения в хранилище")
 		}
 	}
-	go cvrt.runProcessDeleteUrl(ctx, cvrt.inputChan, batchSize, time.Duration(timeFluchBatch*time.Second))
+	go cvrt.runProcessDeleteURL(ctx, cvrt.inputChan, batchSize, time.Duration(timeFluchBatch*time.Second))
 	return cvrt
 }
 
@@ -84,13 +84,11 @@ func (c *Converter) AddURL(url string, user string) (string, error) {
 		url := []*model.DescriptionURL{{Short: shortURL, Original: url}}
 		if err = c.TranStoreURLInDB(url, user); err != nil {
 			logrus.Errorln("ошибка сохранения в базу:", err)
-			return "", err
 		}
 		shortURL = url[0].Short
 	case ModeStoreFile:
 		if shortURL, err = c.StoreURLInFile(shortURL, url, user); err != nil {
 			logrus.Errorln("ошибка сохранения в файл:", err)
-			return "", err
 		}
 	case ModeStoreStorage:
 		shortURL, err = c.storage.Add(url, shortURL)
@@ -241,23 +239,12 @@ func (c *Converter) DeleteURLForUser(url string, user string) error {
 	default:
 		msg := "Буфер переполнен"
 		logrus.Info(msg)
-		return errors.New(msg)
+		return fmt.Errorf("%s", msg)
 	}
 	return nil
 }
 
-func (c *Converter) flushDeleteUrl(batch []*model.DescriptionURL) {
-	if len(batch) == 0 {
-		return
-	}
-
-	c.DeleteURLs(batch)
-
-	batch = batch[:0]
-
-}
-
-func (c *Converter) runProcessDeleteUrl(ctx context.Context, deletes <-chan *model.DescriptionURL, batchSize int, flushTimeout time.Duration) {
+func (c *Converter) runProcessDeleteURL(ctx context.Context, deletes <-chan *model.DescriptionURL, batchSize int, flushTimeout time.Duration) {
 	logrus.Info("Старт процесса обновления удалённых URL")
 
 	batch := make([]*model.DescriptionURL, 0, batchSize)
@@ -268,19 +255,19 @@ func (c *Converter) runProcessDeleteUrl(ctx context.Context, deletes <-chan *mod
 		select {
 		case <-ctx.Done():
 			logrus.Infoln("Отмена контекста в процессе обновления удалённых URL")
-			c.flushDeleteUrl(batch)
+			c.DeleteURLs(batch)
 			return
 
 		case del, ok := <-deletes:
 			if !ok {
 				logrus.Infoln("Канал для удаления данных закрыт")
-				c.flushDeleteUrl(batch)
+				c.DeleteURLs(batch)
 				return
 			}
-
 			batch = append(batch, del)
 			if len(batch) == cap(batch) {
-				c.flushDeleteUrl(batch)
+				c.DeleteURLs(batch)
+				batch = batch[:0]
 				if !timer.Stop() {
 					select {
 					case <-timer.C:
@@ -291,7 +278,8 @@ func (c *Converter) runProcessDeleteUrl(ctx context.Context, deletes <-chan *mod
 			}
 
 		case <-timer.C:
-			c.flushDeleteUrl(batch)
+			c.DeleteURLs(batch)
+			batch = batch[:0]
 			timer.Reset(flushTimeout)
 		}
 	}
