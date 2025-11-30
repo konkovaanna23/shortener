@@ -17,8 +17,8 @@ import (
 const (
 	lengthURL      = 6
 	buferSize      = 1000
-	batchSize      = 20
-	timeFluchBatch = 30
+	batchSize      = 3
+	timeFluchBatch = 10
 )
 
 const (
