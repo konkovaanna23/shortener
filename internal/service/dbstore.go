@@ -10,13 +10,11 @@ import (
 )
 
 func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
-	fmt.Println(shortURL)
 	var resultOriginal string
 	var resultIsDeleted bool
 	err := c.db.QueryRow(` SELECT original_url, is_deleted
 						   FROM urls.links 
 						   WHERE short_url=$1; `, shortURL).Scan(&resultOriginal, &resultIsDeleted)
-	fmt.Println(err)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("не существует оригинально URL для %s", shortURL)

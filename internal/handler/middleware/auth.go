@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -66,7 +65,6 @@ func AuthMiddleware(key string) func(http.Handler) http.Handler {
 			var needSetCookie bool
 
 			c, err := r.Cookie(cookieName)
-			fmt.Printf("%v: \n", r.Cookies())
 			if err == nil {
 				id, sig, err := parseCookieValue(c.Value)
 				if err != nil || id == "" {

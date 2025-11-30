@@ -187,12 +187,6 @@ func (s *Server) deleteURLForUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.Info("Delete UrlForUser ", string(bodyBytes), " Заданный user:", user)
-	for _, u := range urls {
-		err := s.converter.DeleteURLForUser(u, user)
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-	}
+	go s.converter.DeleteURLsForUser(urls, user)
 	w.WriteHeader(http.StatusAccepted)
 }

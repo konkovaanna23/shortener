@@ -15,10 +15,7 @@ import (
 )
 
 const (
-	lengthURL      = 6
-	buferSize      = 1000
-	batchSize      = 3
-	timeFluchBatch = 10
+	lengthURL = 6
 )
 
 const (
@@ -28,14 +25,15 @@ const (
 )
 
 type Converter struct {
-	url       string
-	storage   *model.Storage
-	db        *sqlx.DB
-	modeStore string
-	filePath  string
-	fMx       sync.RWMutex
-	userURLS  *model.UserURLS
-	inputChan chan *model.DescriptionURL
+	url              string
+	storage          *model.Storage
+	db               *sqlx.DB
+	modeStore        string
+	filePath         string
+	fMx              sync.RWMutex
+	userURLS         *model.UserURLS
+	httpDeleteChan   chan *model.DescriptionURL
+	manualDeleteChan chan *model.DescriptionURL
 }
 
 type URLRequest struct {
@@ -46,14 +44,15 @@ type URLResponse struct {
 	URLShort string `json:"result"`
 }
 
-func NewConverter(ctx context.Context, serverURL string, filePath string, db *sqlx.DB) *Converter {
+func NewConverter(ctx context.Context, serverURL string, filePath string, db *sqlx.DB, bufferSize, batchSize, timeFlushDel int) *Converter {
 	cvrt := &Converter{
-		url:       serverURL,
-		storage:   model.NewStorage(lengthURL),
-		db:        db,
-		filePath:  filePath,
-		userURLS:  model.NewUserURLS(),
-		inputChan: make(chan *model.DescriptionURL, buferSize),
+		url:              serverURL,
+		storage:          model.NewStorage(lengthURL),
+		db:               db,
+		filePath:         filePath,
+		userURLS:         model.NewUserURLS(),
+		httpDeleteChan:   make(chan *model.DescriptionURL, bufferSize),
+		manualDeleteChan: make(chan *model.DescriptionURL, bufferSize),
 	}
 
 	if db != nil {
@@ -67,8 +66,9 @@ func NewConverter(ctx context.Context, serverURL string, filePath string, db *sq
 			cvrt.modeStore = ModeStoreStorage
 			logrus.Println("Установлен режим сохранения в хранилище")
 		}
+
 	}
-	go cvrt.runProcessDeleteURL(ctx, cvrt.inputChan, batchSize, time.Duration(timeFluchBatch*time.Second))
+	cvrt.StartDeleteProcessor(ctx, batchSize, time.Duration(timeFlushDel)*time.Second)
 	return cvrt
 }
 
@@ -233,15 +233,52 @@ func (c *Converter) GetURLsForUser(user string) ([]*model.DescriptionURL, error)
 	return urls, nil
 }
 
-func (c *Converter) DeleteURLForUser(url string, user string) error {
-	select {
-	case c.inputChan <- &model.DescriptionURL{Short: url, UserID: user}:
-	default:
-		msg := "Буфер переполнен"
-		logrus.Info(msg)
-		return fmt.Errorf("%s", msg)
+func (c *Converter) mergedDeleteChan(ctx context.Context, chans ...<-chan *model.DescriptionURL) <-chan *model.DescriptionURL {
+	out := make(chan *model.DescriptionURL)
+
+	var wg sync.WaitGroup
+	wg.Add(len(chans))
+
+	for _, ch := range chans {
+		ch := ch
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case v, ok := <-ch:
+					if !ok {
+						return
+					}
+					select {
+					case out <- v:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}()
 	}
-	return nil
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
+}
+
+func (c *Converter) DeleteURLsForUser(urls []string, user string) {
+	for _, url := range urls {
+
+		select {
+		case c.httpDeleteChan <- &model.DescriptionURL{Short: url, UserID: user}:
+		default:
+			msg := "Буфер переполнен"
+			logrus.Info(msg)
+		}
+	}
 }
 
 func (c *Converter) runProcessDeleteURL(ctx context.Context, deletes <-chan *model.DescriptionURL, batchSize int, flushTimeout time.Duration) {
@@ -309,4 +346,15 @@ func (c *Converter) DeleteURLs(urls []*model.DescriptionURL) error {
 		}
 	}
 	return nil
+}
+
+func (c *Converter) StartDeleteProcessor(ctx context.Context, batchSize int, flushTimeout time.Duration,
+) {
+
+	mergedChan := c.mergedDeleteChan(ctx,
+		c.httpDeleteChan,
+		c.manualDeleteChan,
+	)
+
+	go c.runProcessDeleteURL(ctx, mergedChan, batchSize, flushTimeout)
 }

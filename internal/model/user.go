@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"slices"
 	"sync"
 )
@@ -30,8 +29,6 @@ func (lu *UserURLS) AddURLForUser(userID string, url string) {
 func (lu *UserURLS) InitUsers(userurls map[string][]string) {
 	lu.mx.Lock()
 	defer lu.mx.Unlock()
-	fmt.Println("инициализация user")
-	fmt.Println(userurls)
 	for key, value := range userurls {
 		lu.userURLS[key] = value
 	}

@@ -10,10 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	key = "secret"
-)
-
 type Server struct {
 	url       string
 	mux       *chi.Mux
@@ -21,7 +17,7 @@ type Server struct {
 	srv       *http.Server
 }
 
-func NewServer(url string, converter *service.Converter) *Server {
+func NewServer(url string, converter *service.Converter, key string) *Server {
 
 	mux := chi.NewRouter()
 
