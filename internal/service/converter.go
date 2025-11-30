@@ -316,7 +316,7 @@ func (c *Converter) DeleteURLs(urls []*model.DescriptionURL) error {
 			if c.userURLS.ExistURLForUser(url.UserID, url.Short) {
 				c.storage.Delete(url.Short)
 			} else {
-				logrus.Infoln("Не существует URL=%s у пользователя %s", url.Short, url.UserID)
+				logrus.Infof("Не существует URL=%s у пользователя %s", url.Short, url.UserID)
 			}
 		}
 	}
