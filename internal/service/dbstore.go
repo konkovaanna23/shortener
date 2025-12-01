@@ -25,28 +25,7 @@ func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
 	return resultOriginal, nil
 }
 
-func (c *Converter) StoreURLInDB(shortURL, originalURL string) (string, error) {
-	var resultShort string
-
-	err := c.db.QueryRow(`
-        INSERT INTO urls.links (short_url, original_url)
-        VALUES ($1, $2)
-        ON CONFLICT (original_url) DO UPDATE
-		SET short_url = urls.links.short_url
-        RETURNING short_url;
-    `, shortURL, originalURL).Scan(&resultShort)
-
-	if err != nil {
-		return "", err
-	}
-
-	if shortURL != resultShort {
-		return resultShort, model.ErrorConflictURL
-	}
-	return resultShort, nil
-}
-
-func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL) error {
+func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) error {
 	tx, err := c.db.Beginx()
 	if err != nil {
 		return err
@@ -59,21 +38,77 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL) error {
 									VALUES ($1, $2)
 									ON CONFLICT (original_url) DO UPDATE
 									SET short_url = urls.links.short_url
-									RETURNING short_url;
+									RETURNING short_url, uuid;
 								`)
 	if err != nil {
 		return err
 	}
 	defer insertStmt.Close()
-	for _, url := range urls {
-		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&url.Short); err != nil {
+
+	insertUserStmt, err := tx.Preparex(`
+        INSERT INTO urls.users (id) VALUES ($1)
+        ON CONFLICT (id) DO NOTHING;
+    `)
+	if err != nil {
+		return err
+	}
+	defer insertUserStmt.Close()
+
+	insertXMapStmt, err := tx.Preparex(`
+        INSERT INTO urls.links_users_xmap (user_id, url_id)
+        VALUES ($1, $2)
+        ON CONFLICT (url_id) DO NOTHING;
+    `)
+	if err != nil {
+		return err
+	}
+	defer insertXMapStmt.Close()
+
+	if user != "" {
+		_, err = insertUserStmt.Exec(user)
+		if err != nil {
 			_ = tx.Rollback()
 			return err
 		}
 	}
+	for _, url := range urls {
+		var linkID string
+
+		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&url.Short, &linkID); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+
+		if user != "" {
+			_, err = insertXMapStmt.Exec(user, linkID)
+			if err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	logrus.Printf("Данные в БД обновлены")
+
+	logrus.Printf("Данные в БД успешно обновлены")
 	return nil
+}
+
+func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, error) {
+	var result []*model.DescriptionURL
+
+	query := `
+        SELECT  l.short_url, l.original_url
+        FROM urls.links_users_xmap x
+        INNER JOIN urls.links l ON l.uuid = x.url_id 
+		WHERE x.user_id = $1
+    `
+
+	if err := c.db.Select(&result, query, user); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

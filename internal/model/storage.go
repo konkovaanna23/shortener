@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"math/rand"
+	"slices"
 	"sync"
 )
 
@@ -76,6 +77,19 @@ func (s *Storage) GetAllURLMap() map[string]string {
 		k := key.(string)
 		v := value.(string)
 		resultMap[k] = v
+		return true
+	})
+	return resultMap
+}
+
+func (s *Storage) GetURLMapForList(list []string) map[string]string {
+	resultMap := make(map[string]string)
+	s.urls.Range(func(key, value interface{}) bool {
+		k := key.(string)
+		v := value.(string)
+		if slices.Contains(list, k) {
+			resultMap[k] = v
+		}
 		return true
 	})
 	return resultMap
