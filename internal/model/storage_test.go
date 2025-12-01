@@ -11,8 +11,8 @@ func TestStorage_Get(t *testing.T) {
 	sourceURL := "http://ya.ru"
 	shortURL := s.GenerateShortURL()
 	result, _ := s.Add(sourceURL, shortURL)
-	resultURL, ok := s.Get(result)
-	if ok != true {
+	resultURL, err := s.Get(result)
+	if err != nil {
 		t.Errorf("URL не найден")
 	}
 	if sourceURL != resultURL {

@@ -10,10 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	key = "secret"
-)
-
 type Server struct {
 	url       string
 	mux       *chi.Mux
@@ -21,7 +17,7 @@ type Server struct {
 	srv       *http.Server
 }
 
-func NewServer(url string, converter *service.Converter) *Server {
+func NewServer(url string, converter *service.Converter, key string) *Server {
 
 	mux := chi.NewRouter()
 
@@ -39,6 +35,7 @@ func NewServer(url string, converter *service.Converter) *Server {
 	s.mux.Post("/api/shorten", s.newJSONURL)
 	s.mux.Post("/api/shorten/batch", s.newJSONBatchURL)
 	s.mux.Get("/api/user/urls", s.getURLForUser)
+	s.mux.Delete("/api/user/urls", s.deleteURLForUser)
 	s.srv = &http.Server{
 		Addr:    url,
 		Handler: mux,

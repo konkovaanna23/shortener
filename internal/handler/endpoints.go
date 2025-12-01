@@ -53,9 +53,14 @@ func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("GET Заданный URL:", shortURL)
 	sourceURL, err := s.converter.GetURL(shortURL)
 	if err != nil {
-		logrus.Println("Ошибка:" + err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		if errors.Is(err, model.ErrorDeletedURL) {
+			w.WriteHeader(http.StatusGone)
+			return
+		} else {
+			logrus.Println("Ошибка:" + err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	logrus.Info("GET Исходный URL:", sourceURL)
 	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
@@ -165,4 +170,23 @@ func (s *Server) getURLForUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(bodyResult)
 
+}
+
+func (s *Server) deleteURLForUser(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.GetUserID(r.Context())
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Ошибка чтения BODY", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+	var urls []string
+	err = json.Unmarshal(bodyBytes, &urls)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logrus.Info("Delete UrlForUser ", string(bodyBytes), " Заданный user:", user)
+	go s.converter.DeleteURLsForUser(urls, user)
+	w.WriteHeader(http.StatusAccepted)
 }

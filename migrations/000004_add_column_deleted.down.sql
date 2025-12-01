@@ -1,0 +1,1 @@
+ALTER TABLE urls.links DROP COLUMN IF EXISTS is_deleted;
