@@ -1,12 +1,16 @@
 package file
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 func SaveToFile(fileName string, data []byte) error {
 	err := os.WriteFile(fileName, data, 0644)
 	if err != nil {
 		return err
 	}
+	fmt.Println("Команда сохранения в файл отработала ", fileName, " данные ", string(data))
 	return nil
 }
 
