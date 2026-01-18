@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	defaultHost         = "localhost:8080"
-	defaultURLShort     = "http://localhost:8080"
-	defaultFilePath     = "shorturl.json"
-	defaultDSN          = "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable"
+	defaultHost     = "localhost:8080"
+	defaultURLShort = "http://localhost:8080"
+	//defaultFilePath     = "shorturl.json"
+	//defaultDSN          = "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable"
 	defaultBufferSize   = 100
 	defaultBatchSize    = 3
 	defaultKey          = "secret"
@@ -18,14 +18,16 @@ const (
 )
 
 type Config struct {
-	URLserver    string
-	URLforShort  string
-	FilePath     string
-	DSN          string
-	BufferSize   int
-	BatchSize    int
-	Key          string
-	TimeFlushDel int
+	URLserver     string
+	URLforShort   string
+	FilePath      string
+	DSN           string
+	BufferSize    int
+	BatchSize     int
+	Key           string
+	TimeFlushDel  int
+	AuditFilePath string
+	AuditURL      string
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -48,11 +50,13 @@ func GetConfig() *Config {
 	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
 	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
 	fileStoragePathFlag := flag.String("f", "", "Путь до файла")
-	dsnFlag := flag.String("d", defaultDSN, "DSN для подключения к базе данных")
+	dsnFlag := flag.String("d", "", "DSN для подключения к базе данных")
 	bufferSizeFlag := flag.Int("u", defaultBufferSize, "Размер буфера для накопления объектов обновления")
 	batchSizeFlag := flag.Int("h", defaultBatchSize, "Размер обновляемых URL для удаления")
 	timeFlushDelFlag := flag.Int("t", defaultTimeFlushDel, "Период ожидания обновления удаляемых данных(в секундах)")
 	keyFlag := flag.String("k", defaultKey, "Ключ для шифрования пользователя")
+	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
+	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
 	flag.Parse()
 
 	urlServer := getEnvString("SERVER_ADDRESS", *urlServerFlag)
@@ -63,15 +67,19 @@ func GetConfig() *Config {
 	batchSize := getEnvInt("BATCH_SIZE", *batchSizeFlag)
 	timeFlushDel := getEnvInt("TIME_FLUSH_DELETE", *timeFlushDelFlag)
 	key := getEnvString("KEY", *keyFlag)
+	auditFile := getEnvString("AUDIT_FILE", *auditFileFlag)
+	auditURL := getEnvString("AUDIT_URL", *auditURLFlag)
 
 	return &Config{
-		URLserver:    urlServer,
-		URLforShort:  urlForShort,
-		FilePath:     fileStoragePath,
-		DSN:          dsn,
-		BufferSize:   bufferSize,
-		BatchSize:    batchSize,
-		TimeFlushDel: timeFlushDel,
-		Key:          key,
+		URLserver:     urlServer,
+		URLforShort:   urlForShort,
+		FilePath:      fileStoragePath,
+		DSN:           dsn,
+		BufferSize:    bufferSize,
+		BatchSize:     batchSize,
+		TimeFlushDel:  timeFlushDel,
+		Key:           key,
+		AuditFilePath: auditFile,
+		AuditURL:      auditURL,
 	}
 }

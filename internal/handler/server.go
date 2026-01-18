@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/handler/audit"
 	"github.com/konkovaanna23/shortener/internal/handler/middleware"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
@@ -15,9 +16,10 @@ type Server struct {
 	mux       *chi.Mux
 	converter *service.Converter
 	srv       *http.Server
+	auditor   *audit.Publisher
 }
 
-func NewServer(url string, converter *service.Converter, key string) *Server {
+func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string) *Server {
 
 	mux := chi.NewRouter()
 
@@ -40,6 +42,24 @@ func NewServer(url string, converter *service.Converter, key string) *Server {
 		Addr:    url,
 		Handler: mux,
 	}
+
+	auditor := audit.NewPublisher()
+
+	if auditFile != "" {
+		if fileObs, err := audit.NewFileObserver(auditFile); err == nil {
+			auditor.Subscribe(fileObs)
+		} else {
+			logrus.Error(err)
+		}
+
+	}
+	if auditURL != "" {
+		httpObs := audit.NewHTTPObserver(auditURL)
+		auditor.Subscribe(httpObs)
+	}
+
+	s.auditor = auditor
+
 	return s
 }
 
