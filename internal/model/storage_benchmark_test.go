@@ -12,7 +12,6 @@ const (
 	alphabetLength = byte(len(alphabet))
 )
 
-// Структура для тестов
 type StorageTest struct {
 	length int
 }
@@ -44,6 +43,7 @@ var bufPool = sync.Pool{
 	},
 }
 
+// версия с pool
 func (s *StorageTest) randomStringPooled() string {
 	buf := bufPool.Get().([]byte)
 	if len(buf) < s.length {
