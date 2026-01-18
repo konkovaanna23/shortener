@@ -1,9 +1,9 @@
 package model
 
 import (
+	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
-	"math/rand"
 	"slices"
 	"sync"
 )
@@ -14,11 +14,13 @@ var (
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const lengthLetters = byte(len(letters))
 
 type Storage struct {
 	length     int
 	urls       sync.Map
 	deleteURLs sync.Map
+	bufPool    sync.Pool
 }
 
 func NewStorage(length int) *Storage {
@@ -26,6 +28,11 @@ func NewStorage(length int) *Storage {
 		length:     length,
 		urls:       sync.Map{}, //map[shortURL]originalURL
 		deleteURLs: sync.Map{},
+		bufPool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, 8)
+			},
+		},
 	}
 }
 
@@ -63,11 +70,17 @@ func (s *Storage) Delete(short string) {
 }
 
 func (s *Storage) randomString(letters string) string {
-	b := make([]byte, s.length)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+	buf := s.bufPool.Get().([]byte)
+	if len(buf) < s.length {
+		buf = make([]byte, s.length)
 	}
-	return string(b)
+	defer s.bufPool.Put(buf)
+
+	_, _ = cryptorand.Read(buf[:s.length])
+	for i := 0; i < s.length; i++ {
+		buf[i] = letters[buf[i]%lengthLetters]
+	}
+	return string(buf[:s.length])
 }
 
 func (s *Storage) GenerateShortURL() string {
