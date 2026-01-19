@@ -90,7 +90,7 @@ func (s *Storage) randomString(letters string) string {
 	return string(buf[:s.length])
 }
 
-// GenerateShortURL - генерация короткого URL
+// GenerateShortURL - генерация короткого URL.
 func (s *Storage) GenerateShortURL() string {
 	return s.randomString(letters)
 }
