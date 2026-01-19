@@ -24,6 +24,7 @@ const (
 	ModeStoreStorage = "STORAGE"
 )
 
+// Converter - основной сервис, который конвертирует URL.
 type Converter struct {
 	url              string
 	storage          *model.Storage
@@ -44,6 +45,48 @@ type URLResponse struct {
 	URLShort string `json:"result"`
 }
 
+// NewConverter создаёт новый экземпляр Converter — центрального компонента бизнес-логики
+// сервиса сокращения URL.
+//
+// Converter отвечает за:
+//   - Генерацию коротких ключей
+//   - Хранение соответствий "короткий URL → исходный URL"
+//   - Управление режимом хранения: в памяти, файле или БД
+//   - Асинхронную очистку удалённых URL (через каналы)
+//   - Сохранение состояния при остановке (если используется файл)
+//
+// Поведение зависит от переданных параметров:
+//   - Если db != nil → данные хранятся в PostgreSQL (режим ModeStoreDB)
+//   - Если db == nil и filePath задан → сохранение в JSON-файл (ModeStoreFile)
+//   - Если db == nil и filePath пуст → данные в памяти (ModeStoreStorage)
+//
+// Запускает фоновый процесс обработки удаления URL через StartDeleteProcessor.
+//
+// Параметры:
+//   - ctx: контекст для graceful shutdown и остановки фоновых процессов
+//   - serverURL: базовый URL сервера (например, "http://localhost:8080"), используется для формирования полных коротких ссылок
+//   - filePath: путь к файлу для сохранения данных (если используется файловое хранилище)
+//   - db: подключение к базе данных *sqlx.DB (если используется БД)
+//   - bufferSize: ёмкость каналов для асинхронного удаления URL
+//   - batchSize: количество URL, обрабатываемых за одну итерацию фонового удаления
+//   - timeFlushDel: интервал (в секундах) между проверками очереди на удаление
+//
+// Возвращает *Converter, готовый к использованию.
+//
+// Пример:
+//
+//	db, _ := sqlx.Connect("postgres", "...")
+//	ctx := context.Background()
+//
+//	converter := NewConverter(
+//	    ctx,
+//	    "http://localhost:8080",
+//	    "/data/urls.json",
+//	    db,
+//	    1000,     // bufferSize
+//	    100,      // batchSize
+//	    10,       // timeFlushDel (секунд)
+//	)
 func NewConverter(ctx context.Context, serverURL string, filePath string, db *sqlx.DB, bufferSize, batchSize, timeFlushDel int) *Converter {
 	cvrt := &Converter{
 		url:              serverURL,
@@ -72,6 +115,7 @@ func NewConverter(ctx context.Context, serverURL string, filePath string, db *sq
 	return cvrt
 }
 
+// AddURL добавляет новый URL в хранилище и возвращает короткую ссылку.
 func (c *Converter) AddURL(url string, user string) (string, error) {
 	if !c.isValidURL(url) {
 		msg := fmt.Sprintf("URL [%s] не является валидным", url)
@@ -97,6 +141,7 @@ func (c *Converter) AddURL(url string, user string) (string, error) {
 	return c.url + "/" + shortURL, err
 }
 
+// GetURL возвращает оригинальный URL по короткой ссылке.
 func (c *Converter) GetURL(shortURL string) (string, error) {
 	var URL string
 	var err error
@@ -122,6 +167,7 @@ func (c *Converter) GetURL(shortURL string) (string, error) {
 	return URL, nil
 }
 
+// isValidURL проверяет, является ли строка валидным URL.
 func (c *Converter) isValidURL(input string) bool {
 	u, err := url.Parse(input)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -130,6 +176,7 @@ func (c *Converter) isValidURL(input string) bool {
 	return true
 }
 
+// AddURLForRequest обрабатывает входящий запрос на добавление URL.
 func (c *Converter) AddURLForRequest(url *URLRequest, user string) (*URLResponse, error) {
 	if url == nil {
 		return nil, errors.New("передана пустая структура")
@@ -145,6 +192,7 @@ func (c *Converter) AddURLForRequest(url *URLRequest, user string) (*URLResponse
 	return &URLResponse{URLShort: result}, nil
 }
 
+// PingDB проверяет подключение к базе данных.
 func (c *Converter) PingDB() error {
 	err := db.Ping(c.db)
 	if err != nil {
@@ -153,6 +201,7 @@ func (c *Converter) PingDB() error {
 	return nil
 }
 
+// AddURLForBatch добавляет несколько URL в хранилище и возвращает их.
 func (c *Converter) AddURLForBatch(urls []*model.DescriptionURL, user string) ([]*model.DescriptionURL, error) {
 	var errs []error
 	for _, url := range urls {
@@ -206,6 +255,7 @@ func (c *Converter) convertMapToDescriptionURL(m map[string]string) []*model.Des
 	return result
 }
 
+// GetURLsForUser возвращает список URL для указанного пользователя.
 func (c *Converter) GetURLsForUser(user string) ([]*model.DescriptionURL, error) {
 	var urls []*model.DescriptionURL
 	var err error
@@ -269,6 +319,7 @@ func (c *Converter) mergedDeleteChan(ctx context.Context, chans ...<-chan *model
 	return out
 }
 
+// DeleteURLsForUser удаляет URL для указанного пользователя.
 func (c *Converter) DeleteURLsForUser(urls []string, user string) {
 	for _, url := range urls {
 
@@ -322,6 +373,7 @@ func (c *Converter) runProcessDeleteURL(ctx context.Context, deletes <-chan *mod
 	}
 }
 
+// DeleteURLs удаляет URL из хранилища.
 func (c *Converter) DeleteURLs(urls []*model.DescriptionURL) error {
 	switch c.modeStore {
 	case ModeStoreDB:
@@ -348,6 +400,7 @@ func (c *Converter) DeleteURLs(urls []*model.DescriptionURL) error {
 	return nil
 }
 
+// StartDeleteProcessor запускает процесс обновления удалённых URL.
 func (c *Converter) StartDeleteProcessor(ctx context.Context, batchSize int, flushTimeout time.Duration,
 ) {
 

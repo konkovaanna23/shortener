@@ -8,11 +8,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// HTTPObserver отправляет события аудита на HTTP-сервер
 type HTTPObserver struct {
 	client *http.Client
 	url    string
 }
 
+// NewHTTPObserver создает новый HTTPObserver и возвращает его
+// Параметры:
+//   - url: URL HTTP-сервера, на который будут отправляться события аудита
 func NewHTTPObserver(url string) *HTTPObserver {
 	return &HTTPObserver{
 		client: &http.Client{},
@@ -20,6 +24,7 @@ func NewHTTPObserver(url string) *HTTPObserver {
 	}
 }
 
+// Notify отправляет событие аудита на HTTP-сервер
 func (h *HTTPObserver) Notify(event Event) {
 	data, err := json.Marshal(event)
 	if err != nil {

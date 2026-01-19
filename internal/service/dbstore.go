@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// GetOriginalURLFromDB получает оригинальный URL по короткому из БД.
 func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
 	var resultOriginal string
 	var resultIsDeleted bool
@@ -27,6 +28,7 @@ func (c *Converter) GetOriginalURLFromDB(shortURL string) (string, error) {
 	return resultOriginal, nil
 }
 
+// TranStoreURLInDB сохраняет URL в БД.
 func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) error {
 	var errConflict error
 	tx, err := c.db.Beginx()
@@ -104,6 +106,7 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) 
 	return errConflict
 }
 
+// GetInfoUserURLFromDB получает информацию URL по пользователю.
 func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, error) {
 	var result []*model.DescriptionURL
 

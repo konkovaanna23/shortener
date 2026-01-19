@@ -13,6 +13,7 @@ type responseLogger struct {
 	size   int
 }
 
+// WriteHeader устанавливает StatusCode.
 func (l *responseLogger) WriteHeader(code int) {
 	if l.status != 0 {
 		return
@@ -21,6 +22,7 @@ func (l *responseLogger) WriteHeader(code int) {
 	l.ResponseWriter.WriteHeader(code)
 }
 
+// Write записывает данные в буфер.
 func (l *responseLogger) Write(b []byte) (int, error) {
 	if l.status == 0 {
 		l.status = http.StatusOK
@@ -30,6 +32,7 @@ func (l *responseLogger) Write(b []byte) (int, error) {
 	return size, err
 }
 
+// LoggingMiddleware логирует запросы.
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
