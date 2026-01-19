@@ -52,7 +52,7 @@ func getEnvInt(envKey string, defaultValue int) int {
 func GetConfig() *Config {
 	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
 	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
-	fileStoragePathFlag := flag.String("f", defaultFilePath, "Путь до файла")
+	fileStoragePathFlag := flag.String("f", "", "Путь до файла")
 	dsnFlag := flag.String("d", "", "DSN для подключения к базе данных")
 	bufferSizeFlag := flag.Int("u", defaultBufferSize, "Размер буфера для накопления объектов обновления")
 	batchSizeFlag := flag.Int("h", defaultBatchSize, "Размер обновляемых URL для удаления")
