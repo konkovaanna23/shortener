@@ -45,14 +45,16 @@ var bufPool = sync.Pool{
 
 // версия с pool
 func (s *StorageTest) randomStringPooled() string {
-	buf := bufPool.Get().([]byte)
+	bufPtr := bufPool.Get().(*[]byte)
+	buf := *bufPtr
 	if len(buf) < s.length {
 		buf = make([]byte, s.length)
+		*bufPtr = buf
 	}
-	defer bufPool.Put(buf)
+	defer bufPool.Put(bufPtr)
 
 	_, _ = cryptorand.Read(buf[:s.length])
-	for i := 0; i < s.length; i++ {
+	for i := range s.length {
 		buf[i] = alphabet[buf[i]%alphabetLength]
 	}
 	return string(buf[:s.length])

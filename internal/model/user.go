@@ -38,7 +38,7 @@ func (lu *UserURLS) InitUsers(userurls map[string][]string) {
 	}
 }
 
-// GetUserURLS возвращает URL-ы пользователя.
+// GetURLsForUser возвращает URL-ы пользователя.
 func (lu *UserURLS) GetURLsForUser(userID string) []string {
 	if userID != "" {
 		lu.mx.RLock()

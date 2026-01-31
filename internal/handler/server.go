@@ -1,3 +1,4 @@
+// Package handler - модуль для работы с HTTP-запросами.
 package handler
 
 import (

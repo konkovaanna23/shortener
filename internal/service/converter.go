@@ -1,3 +1,4 @@
+// Package service - основной пакет сервиса сокращения URL.
 package service
 
 import (

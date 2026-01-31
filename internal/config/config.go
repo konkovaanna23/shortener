@@ -1,4 +1,4 @@
-// Пакет для работы с конфигурацией.
+// Package config - пакет для работы с конфигурацией.
 package config
 
 import (
@@ -18,7 +18,7 @@ const (
 	defaultTimeFlushDel = 2
 )
 
-// Конфигурация приложения.
+// Config Конфигурация приложения.
 type Config struct {
 	URLserver     string
 	URLforShort   string

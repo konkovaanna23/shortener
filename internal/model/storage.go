@@ -1,3 +1,4 @@
+// Package model - основные структуры
 package model
 
 import (
@@ -32,7 +33,8 @@ func NewStorage(length int) *Storage {
 		deleteURLs: sync.Map{},
 		bufPool: sync.Pool{
 			New: func() interface{} {
-				return make([]byte, 8)
+				buf := make([]byte, length)
+				return &buf
 			},
 		},
 	}
@@ -77,14 +79,18 @@ func (s *Storage) Delete(short string) {
 }
 
 func (s *Storage) randomString(letters string) string {
-	buf := s.bufPool.Get().([]byte)
+	bufPtr := s.bufPool.Get().(*[]byte)
+	buf := *bufPtr
+
 	if len(buf) < s.length {
 		buf = make([]byte, s.length)
+		*bufPtr = buf
 	}
-	defer s.bufPool.Put(buf)
+
+	defer s.bufPool.Put(bufPtr)
 
 	_, _ = cryptorand.Read(buf[:s.length])
-	for i := 0; i < s.length; i++ {
+	for i := range s.length {
 		buf[i] = letters[buf[i]%lengthLetters]
 	}
 	return string(buf[:s.length])
