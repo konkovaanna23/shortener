@@ -3,13 +3,13 @@ package audit
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 )
 
+// FileObserver реализует интерфейс Observer.
 type FileObserver struct {
 	file *os.File
 	buf  *bufio.Writer
@@ -31,10 +31,8 @@ func NewFileObserver(filename string) (*FileObserver, error) {
 
 // Notify записывает событие в файл в формате JSON, добавляя перевод строки.
 func (f *FileObserver) Notify(event Event) {
-	fmt.Println("ЗАпрос на запись в файл")
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	fmt.Println("ЗАпрос на запись в файл")
 	data, err := json.Marshal(event)
 	if err != nil {
 		logrus.Error("Не удалось сериализовать событие аудита", err)

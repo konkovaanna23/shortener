@@ -1,3 +1,4 @@
+// пакет для подключения к базе данных.
 package db
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// NewConnect создает подключение к базе данных.
 func NewConnect(dsn string) (*sqlx.DB, error) {
 	db, err := sqlx.Connect("pgx", dsn)
 	if err != nil {
@@ -22,6 +24,7 @@ func NewConnect(dsn string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+// Ping проверяет подключение к базе данных.
 func Ping(db *sqlx.DB) error {
 	if err := db.Ping(); err != nil {
 		return err
@@ -29,6 +32,7 @@ func Ping(db *sqlx.DB) error {
 	return nil
 }
 
+// RunMigrations запускает миграции базы данных.
 func RunMigrations(dsn string) error {
 	m, err := migrate.New(
 		"file://migrations",

@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// ResponseCompress implements http.ResponseWriter.
 type ResponseCompress struct {
 	http.ResponseWriter
 	header http.Header
@@ -16,6 +17,7 @@ type ResponseCompress struct {
 	buf    *bytes.Buffer
 }
 
+// WriteHeader устанавливает StatusCode.
 func (l *ResponseCompress) WriteHeader(code int) {
 	if l.status != 0 {
 		return
@@ -23,10 +25,12 @@ func (l *ResponseCompress) WriteHeader(code int) {
 	l.status = code
 }
 
+// Header возвращает http.Header.
 func (l *ResponseCompress) Header() http.Header {
 	return l.header
 }
 
+// Write записывает данные в буфер.
 func (l *ResponseCompress) Write(b []byte) (int, error) {
 	if l.status == 0 {
 		l.status = http.StatusOK
@@ -34,6 +38,7 @@ func (l *ResponseCompress) Write(b []byte) (int, error) {
 	return l.buf.Write(b)
 }
 
+// NewResponseCompress создает новый ResponseCompress.
 func NewResponseCompress(w http.ResponseWriter) *ResponseCompress {
 	return &ResponseCompress{
 		ResponseWriter: w,
@@ -42,6 +47,7 @@ func NewResponseCompress(w http.ResponseWriter) *ResponseCompress {
 	}
 }
 
+// CompressMiddleware разжимает и сжимает данные запроса.
 func CompressMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -16,6 +16,7 @@ var (
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lengthLetters = byte(len(letters))
 
+// Storage - хранилище URL
 type Storage struct {
 	length     int
 	urls       sync.Map
@@ -23,6 +24,7 @@ type Storage struct {
 	bufPool    sync.Pool
 }
 
+// NewStorage - конструктор хранилища.
 func NewStorage(length int) *Storage {
 	return &Storage{
 		length:     length,
@@ -36,12 +38,16 @@ func NewStorage(length int) *Storage {
 	}
 }
 
+// InitStorage - инициализация хранилища
+// Параметры:
+// - urls: map[shortURL]originalURL
 func (s *Storage) InitStorage(urls map[string]string) {
 	for key, value := range urls {
 		s.urls.Store(key, value)
 	}
 }
 
+// Add - добавление URL в хранилище.
 func (s *Storage) Add(url string, short string) (string, error) {
 	shortURL := ""
 	s.urls.Range(func(key, value interface{}) bool {
@@ -62,6 +68,7 @@ func (s *Storage) Add(url string, short string) (string, error) {
 
 }
 
+// Delete - удаление URL из хранилища
 func (s *Storage) Delete(short string) {
 	_, ok := s.urls.Load(short)
 	if ok {
@@ -83,10 +90,12 @@ func (s *Storage) randomString(letters string) string {
 	return string(buf[:s.length])
 }
 
+// GenerateShortURL - генерация короткого URL.
 func (s *Storage) GenerateShortURL() string {
 	return s.randomString(letters)
 }
 
+// Get - получение URL по короткому URL.
 func (s *Storage) Get(shortURL string) (string, error) {
 	URL, ok := s.urls.Load(shortURL)
 	if !ok {
@@ -100,6 +109,7 @@ func (s *Storage) Get(shortURL string) (string, error) {
 	return URL.(string), nil
 }
 
+// GetAllURLMap - получение всех URL из хранилища.
 func (s *Storage) GetAllURLMap() map[string]string {
 	resultMap := make(map[string]string)
 	s.urls.Range(func(key, value interface{}) bool {
@@ -111,6 +121,7 @@ func (s *Storage) GetAllURLMap() map[string]string {
 	return resultMap
 }
 
+// GetURLMapForList - получение URL из хранилища по списку коротких URL.
 func (s *Storage) GetURLMapForList(list []string) map[string]string {
 	resultMap := make(map[string]string)
 	s.urls.Range(func(key, value interface{}) bool {

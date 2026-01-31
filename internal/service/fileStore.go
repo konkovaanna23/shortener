@@ -30,6 +30,7 @@ func (c *Converter) getInfoURLFromFile() ([]*model.DescriptionURL, error) {
 	return urls, nil
 }
 
+// StoreURLInFile функция сохранения URL в файл.
 func (c *Converter) StoreURLInFile(shortURL, originalURL, user string) (string, error) {
 	c.fMx.Lock()
 	defer c.fMx.Unlock()
@@ -57,6 +58,7 @@ func (c *Converter) StoreURLInFile(shortURL, originalURL, user string) (string, 
 	return shortURL, nil
 }
 
+// GetOriginalURLFromFile функция получения оригинального URL по короткому из файла.
 func (c *Converter) GetOriginalURLFromFile(shortURL string) (string, error) {
 	c.fMx.RLock()
 	defer c.fMx.RUnlock()
@@ -78,6 +80,7 @@ func (c *Converter) GetOriginalURLFromFile(shortURL string) (string, error) {
 	return "", fmt.Errorf("не существует оригинально URL для %s", shortURL)
 }
 
+// StoreURLsInFile функция сохранения нескольких URL в файл.
 func (c *Converter) StoreURLsInFile(urls []*model.DescriptionURL, user string) error {
 	c.fMx.Lock()
 	defer c.fMx.Unlock()
@@ -113,6 +116,7 @@ func (c *Converter) StoreURLsInFile(urls []*model.DescriptionURL, user string) e
 	return nil
 }
 
+// GetInfoUserURLFromFile функция получения информации о URL пользователя из файла.
 func (c *Converter) GetInfoUserURLFromFile(user string) ([]*model.DescriptionURL, error) {
 	c.fMx.RLock()
 	defer c.fMx.RUnlock()
@@ -136,6 +140,7 @@ func (c *Converter) GetInfoUserURLFromFile(user string) ([]*model.DescriptionURL
 	return urlForUser, nil
 }
 
+// DeleteURLsFromFile функция удаления URL из файла.
 func (c *Converter) DeleteURLsFromFile(urls []*model.DescriptionURL) error {
 	c.fMx.Lock()
 	defer c.fMx.Unlock()

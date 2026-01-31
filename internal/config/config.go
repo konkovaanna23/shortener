@@ -1,3 +1,4 @@
+// Пакет для работы с конфигурацией.
 package config
 
 import (
@@ -7,16 +8,17 @@ import (
 )
 
 const (
-	defaultHost     = "localhost:8080"
-	defaultURLShort = "http://localhost:8080"
-	//defaultFilePath     = "shorturl.json"
-	//defaultDSN          = "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable"
+	defaultHost         = "localhost:8080"
+	defaultURLShort     = "http://localhost:8080"
+	defaultFilePath     = "shorturl.json"
+	defaultDSN          = "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable"
 	defaultBufferSize   = 100
 	defaultBatchSize    = 3
 	defaultKey          = "secret"
 	defaultTimeFlushDel = 2
 )
 
+// Конфигурация приложения.
 type Config struct {
 	URLserver     string
 	URLforShort   string
@@ -46,6 +48,7 @@ func getEnvInt(envKey string, defaultValue int) int {
 	return defaultValue
 }
 
+// GetConfig возвращает конфигурацию приложения.
 func GetConfig() *Config {
 	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
 	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")

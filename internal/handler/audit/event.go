@@ -1,3 +1,4 @@
+// Пакет audit реализует аудит событий.
 package audit
 
 import (

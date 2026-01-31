@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Server - структура сервера.
 type Server struct {
 	url       string
 	mux       *chi.Mux
@@ -19,6 +20,39 @@ type Server struct {
 	auditor   *audit.Publisher
 }
 
+// NewServer создаёт и настраивает новый экземпляр HTTP-сервера для сервиса сокращения URL.
+//
+// Инициализирует маршрутизацию, подключает middleware и настраивает аудит событий.
+// Поддерживает:
+//   - Сжатие запросов/ответов (gzip)
+//   - Логирование всех запросов
+//   - Аутентификацию с использованием HMAC-подписи (если ключ задан)
+//   - Аудит POST-запросов через файл и/или внешний HTTP-сервис
+//
+// Аудит включается, если указан один или оба параметра: auditFile или auditURL.
+// События аудита публикуются при создании и удалении URL.
+//
+// Параметры:
+//   - url: адрес, на котором будет запущен сервер (например, ":8080")
+//   - converter: бизнес-логика для генерации и хранения сокращённых URL
+//   - key: секретный ключ для проверки HMAC-подписи (может быть пустым)
+//   - auditFile: путь к файлу для записи аудит-событий (если пуст — не используется)
+//   - auditURL: URL внешнего сервиса для отправки аудит-событий (если пуст — не используется)
+//
+// Возвращает указатель на *Server, готовый к запуску.
+//
+// Пример использования:
+//
+//	converter := service.NewConverter(...)
+//	server := handler.NewServer(
+//	    ":8080",
+//	    converter,
+//	    "my-secret-key",
+//	    "/var/log/audit.log",
+//	    "https://audit-service/api/events",
+//	)
+//
+//	go server.Start(ctx)
 func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string) *Server {
 
 	mux := chi.NewRouter()
@@ -63,6 +97,7 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 	return s
 }
 
+// Start запускает HTTP-сервер в отдельной горутине.
 func (s *Server) Start(ctx context.Context) error {
 
 	go func() {
@@ -74,4 +109,8 @@ func (s *Server) Start(ctx context.Context) error {
 
 	err := s.srv.ListenAndServe()
 	return err
+}
+
+func (s *Server) GetHandler() http.Handler {
+	return s.mux
 }

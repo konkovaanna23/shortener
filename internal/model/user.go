@@ -5,17 +5,20 @@ import (
 	"sync"
 )
 
+// UserURLS хранит URL-ы пользователя.
 type UserURLS struct {
 	mx       sync.RWMutex
 	userURLS map[string][]string
 }
 
+// NewUserURLS создает новый экземпляр UserURLS.
 func NewUserURLS() *UserURLS {
 	return &UserURLS{
 		userURLS: make(map[string][]string),
 	}
 }
 
+// AddURLForUser добавляет URL для пользователя.
 func (lu *UserURLS) AddURLForUser(userID string, url string) {
 	if userID != "" {
 		lu.mx.Lock()
@@ -26,6 +29,7 @@ func (lu *UserURLS) AddURLForUser(userID string, url string) {
 	}
 }
 
+// InitUsers инициализирует пользователей.
 func (lu *UserURLS) InitUsers(userurls map[string][]string) {
 	lu.mx.Lock()
 	defer lu.mx.Unlock()
@@ -34,6 +38,7 @@ func (lu *UserURLS) InitUsers(userurls map[string][]string) {
 	}
 }
 
+// GetUserURLS возвращает URL-ы пользователя.
 func (lu *UserURLS) GetURLsForUser(userID string) []string {
 	if userID != "" {
 		lu.mx.RLock()
@@ -44,6 +49,7 @@ func (lu *UserURLS) GetURLsForUser(userID string) []string {
 	}
 }
 
+// ExistURLForUser проверяет, существует ли URL для пользователя.
 func (lu *UserURLS) ExistURLForUser(userID string, url string) bool {
 	if userID == "" {
 		return false

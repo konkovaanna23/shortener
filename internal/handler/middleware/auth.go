@@ -18,12 +18,13 @@ var userIDKey = ctxKey{"user_id"}
 
 const cookieName = "user"
 
-// GetUserID извлекает userID из контекста
+// GetUserID извлекает userID из контекста.
 func GetUserID(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(userIDKey).(string)
 	return userID, ok
 }
 
+// SetUserID устанавливает userID в контекст.
 func SetUserID(r *http.Request, userID string) *http.Request {
 	ctx := context.WithValue(r.Context(), userIDKey, userID)
 	return r.WithContext(ctx)
@@ -41,6 +42,7 @@ func verify(key, loadString, sig string) bool {
 	return hmac.Equal([]byte(expected), []byte(sig))
 }
 
+// GenerateUserID генерирует случайный userID.
 func GenerateUserID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -57,6 +59,7 @@ func parseCookieValue(v string) (userID, sig string, err error) {
 	return parts[0], parts[1], nil
 }
 
+// AuthMiddleware - middleware для аутентификации пользователей.
 func AuthMiddleware(key string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
