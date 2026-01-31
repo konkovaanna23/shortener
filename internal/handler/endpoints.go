@@ -5,8 +5,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/konkovaanna23/shortener/internal/handler/audit"
 	"github.com/konkovaanna23/shortener/internal/handler/middleware"
 	"github.com/konkovaanna23/shortener/internal/model"
 	"github.com/konkovaanna23/shortener/internal/service"
@@ -43,6 +45,11 @@ func (s *Server) newURL(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte(result))
 
+	s.auditor.Publish(audit.Event{Time: time.Now(),
+		Action: "shorten",
+		UserID: user,
+		URL:    text})
+
 }
 
 func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +70,12 @@ func (s *Server) getURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	logrus.Info("GET Исходный URL:", sourceURL)
+	s.auditor.Publish(audit.Event{Time: time.Now(),
+		Action: "follow",
+		URL:    sourceURL,
+	})
 	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
+
 }
 
 func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
@@ -104,6 +116,10 @@ func (s *Server) newJSONURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}
 	w.Write(bodyResult)
+	s.auditor.Publish(audit.Event{Time: time.Now(),
+		Action: "shorten",
+		UserID: user,
+		URL:    urlRequest.URL})
 
 }
 
