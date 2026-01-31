@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"net/http"
+	_ "net/http/pprof"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/konkovaanna23/shortener/internal/config"
 	"github.com/konkovaanna23/shortener/internal/config/db"
@@ -15,6 +18,15 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// pprof server
+	pprofSrv := &http.Server{Addr: "localhost:6060"}
+	go func() {
+		logrus.Println("pprof доступен на http://localhost:6060/debug/pprof/")
+		if err := pprofSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logrus.Error("pprof server error: ", err)
+		}
+	}()
 
 	cfg := config.GetConfig()
 	database, err := db.NewConnect(cfg.DSN)
@@ -41,4 +53,8 @@ func main() {
 	<-ctx.Done()
 	logrus.Println("Сервер остановлен")
 
+	// graceful shutdown pprof
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = pprofSrv.Shutdown(shutdownCtx)
 }
