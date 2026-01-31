@@ -39,7 +39,8 @@ func (s *StorageTest) randomStringNew() string {
 
 var bufPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 8)
+		buf := make([]byte, 8)
+		return &buf
 	},
 }
 
