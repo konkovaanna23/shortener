@@ -55,6 +55,7 @@ func (c *Converter) StoreURLInFile(shortURL, originalURL, user string) (string, 
 	if err != nil {
 		return "", err
 	}
+	logrus.Infof("сохранен URL=%s для пользователя %s в файл %s", shortURL, user, c.filePath)
 	return shortURL, nil
 }
 
