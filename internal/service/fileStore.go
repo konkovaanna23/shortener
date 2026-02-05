@@ -145,6 +145,9 @@ func (c *Converter) GetInfoUserURLFromFile(user string) ([]*model.DescriptionURL
 func (c *Converter) DeleteURLsFromFile(urls []*model.DescriptionURL) error {
 	c.fMx.Lock()
 	defer c.fMx.Unlock()
+	if len(urls) == 0 {
+		logrus.Warningln("Нет данных для удаления")
+	}
 	sourceURLs, err := c.getInfoURLFromFile()
 	if err != nil {
 		return err

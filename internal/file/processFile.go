@@ -2,7 +2,6 @@
 package file
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -29,7 +28,6 @@ func ReadFromFile(fileName string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Содержимое:", string(result))
 	return result, err
 
 }
