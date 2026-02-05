@@ -18,7 +18,6 @@ import (
 // ProcessPackage - основна функция для генерации файлов
 func ProcessPackage(pkg *packages.Package) {
 	var structs []StructInfo
-	fmt.Println("Генерируем")
 	for i, file := range pkg.Syntax {
 		f := pkg.CompiledGoFiles[i]
 
@@ -28,7 +27,6 @@ func ProcessPackage(pkg *packages.Package) {
 
 		currentPkgPath := pkg.PkgPath
 
-		fmt.Println(currentPkgPath)
 		ast.Inspect(file, func(n ast.Node) bool {
 			gen, ok := n.(*ast.GenDecl)
 			if !ok || gen.Tok != token.TYPE {
