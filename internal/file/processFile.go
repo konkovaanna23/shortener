@@ -11,7 +11,7 @@ import (
 // - fileName:  имя файла.
 // - data: данные для сохранения.
 func SaveToFile(fileName string, data []byte) error {
-	fmt.Println("Перед записью: ", string(data), "\n")
+	fmt.Println("Перед записью: ", string(data))
 	err := os.WriteFile(fileName, data, 0644)
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func ReadFromFile(fileName string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Содержимое файла: ", string(result), "\n")
+	fmt.Println("Содержимое файла: ", string(result))
 	return result, err
 
 }
