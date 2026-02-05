@@ -51,6 +51,7 @@ func (c *Converter) StoreURLInFile(shortURL, originalURL, user string) (string, 
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("StoreURLInFile - сохранение файла")
 	err = file.SaveToFile(c.filePath, data)
 	if err != nil {
 		return "", err
@@ -110,6 +111,7 @@ func (c *Converter) StoreURLsInFile(urls []*model.DescriptionURL, user string) e
 	if err != nil {
 		return err
 	}
+	fmt.Println("StoreURLsInFile - сохранение файла")
 	err = file.SaveToFile(c.filePath, data)
 	if err != nil {
 		return err
@@ -173,6 +175,7 @@ func (c *Converter) DeleteURLsFromFile(urls []*model.DescriptionURL) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("DeleteURLsFromFile - сохранение файла")
 	err = file.SaveToFile(c.filePath, data)
 	if err != nil {
 		return err
