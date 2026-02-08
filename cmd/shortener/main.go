@@ -15,7 +15,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 func main() {
+
+	config.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
