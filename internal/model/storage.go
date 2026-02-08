@@ -22,6 +22,12 @@ type Buf struct {
 	B []byte
 }
 
+func (b *Buf) Reset() {
+
+	b.B = b.B[:0]
+
+}
+
 // Storage - хранилище URL
 type Storage struct {
 	length     int
