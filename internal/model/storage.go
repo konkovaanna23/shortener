@@ -91,6 +91,9 @@ func (s *Storage) randomString(letters string) string {
 	buf := s.bufPool.Get()
 	defer s.bufPool.Put(buf)
 
+	if len(buf.B) < s.length {
+		buf.B = make([]byte, s.length)
+	}
 	_, _ = cryptorand.Read(buf.B[:s.length])
 	for i := 0; i < s.length; i++ {
 		buf.B[i] = letters[buf.B[i]%lengthLetters]
