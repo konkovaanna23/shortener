@@ -18,26 +18,34 @@ const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lengthLetters = byte(len(letters))
 
 // generate:reset
+type Buf struct {
+	B []byte
+}
+
+func (b *Buf) Reset() {
+
+	b.B = b.B[:0]
+
+}
+
 // Storage - хранилище URL
 type Storage struct {
 	length     int
 	urls       sync.Map
 	deleteURLs sync.Map
-	bufPool    sync.Pool
+	bufPool    *Pool[*Buf]
 }
 
 // NewStorage - конструктор хранилища.
 func NewStorage(length int) *Storage {
+	bufPool := NewPool(func() *Buf {
+		return &Buf{B: make([]byte, length)}
+	})
 	return &Storage{
 		length:     length,
 		urls:       sync.Map{}, //map[shortURL]originalURL
 		deleteURLs: sync.Map{},
-		bufPool: sync.Pool{
-			New: func() interface{} {
-				buf := make([]byte, length)
-				return &buf
-			},
-		},
+		bufPool:    bufPool,
 	}
 }
 
@@ -80,21 +88,17 @@ func (s *Storage) Delete(short string) {
 }
 
 func (s *Storage) randomString(letters string) string {
-	bufPtr := s.bufPool.Get().(*[]byte)
-	buf := *bufPtr
+	buf := s.bufPool.Get()
+	defer s.bufPool.Put(buf)
 
-	if len(buf) < s.length {
-		buf = make([]byte, s.length)
-		*bufPtr = buf
+	if len(buf.B) < s.length {
+		buf.B = make([]byte, s.length)
 	}
-
-	defer s.bufPool.Put(bufPtr)
-
-	_, _ = cryptorand.Read(buf[:s.length])
-	for i := range s.length {
-		buf[i] = letters[buf[i]%lengthLetters]
+	_, _ = cryptorand.Read(buf.B[:s.length])
+	for i := 0; i < s.length; i++ {
+		buf.B[i] = letters[buf.B[i]%lengthLetters]
 	}
-	return string(buf[:s.length])
+	return string(buf.B[:s.length])
 }
 
 // GenerateShortURL - генерация короткого URL.
