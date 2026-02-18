@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/konkovaanna23/shortener/internal/resetgen"
+	"github.com/konkovaanna23/shortener/cmd/reset/resetgen"
 	"golang.org/x/tools/go/packages"
 )
 

@@ -5,6 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/konkovaanna23/shortener/internal/pool"
 	"slices"
 	"sync"
 )
@@ -17,7 +18,6 @@ var (
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lengthLetters = byte(len(letters))
 
-// generate:reset
 type Buf struct {
 	B []byte
 }
@@ -33,12 +33,12 @@ type Storage struct {
 	length     int
 	urls       sync.Map
 	deleteURLs sync.Map
-	bufPool    *Pool[*Buf]
+	bufPool    *pool.Pool[*Buf]
 }
 
 // NewStorage - конструктор хранилища.
 func NewStorage(length int) *Storage {
-	bufPool := NewPool(func() *Buf {
+	bufPool := pool.NewPool(func() *Buf {
 		return &Buf{B: make([]byte, length)}
 	})
 	return &Storage{
