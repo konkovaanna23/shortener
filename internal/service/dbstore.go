@@ -79,7 +79,10 @@ func (c *Converter) TranStoreURLInDB(urls []*model.DescriptionURL, user string) 
 	for _, url := range urls {
 		var linkID string
 		var urlShort string
-		if err := insertStmt.QueryRow(url.Short, url.Original).Scan(&urlShort, &linkID); err != nil {
+
+		err = insertStmt.QueryRow(url.Short, url.Original).Scan(&urlShort, &linkID)
+
+		if err != nil {
 			_ = tx.Rollback()
 			return err
 		}
