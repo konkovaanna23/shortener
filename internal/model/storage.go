@@ -17,6 +17,7 @@ var (
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lengthLetters = byte(len(letters))
 
+// generate:reset
 // Storage - хранилище URL
 type Storage struct {
 	length     int

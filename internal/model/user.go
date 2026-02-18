@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// generate:reset
 // UserURLS хранит URL-ы пользователя.
 type UserURLS struct {
 	mx       sync.RWMutex

@@ -1,5 +1,7 @@
 package model
 
+// DescriptionURL - структура для описания URL
+// generate:reset
 type DescriptionURL struct {
 	ID          int    `json:"uuid,omitempty" db:"uuid,omitempty"`
 	Short       string `json:"short_url,omitempty" db:"short_url,omitempty"`
