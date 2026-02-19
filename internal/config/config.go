@@ -30,6 +30,7 @@ type Config struct {
 	TimeFlushDel  int
 	AuditFilePath string
 	AuditURL      string
+	EnableHttps   bool
 }
 
 func getEnvString(envKey, defaultValue string) string {
@@ -48,6 +49,15 @@ func getEnvInt(envKey string, defaultValue int) int {
 	return defaultValue
 }
 
+func getEnvBool(envKey string, defaultValue bool) bool {
+	if v := os.Getenv(envKey); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return defaultValue
+}
+
 // GetConfig возвращает конфигурацию приложения.
 func GetConfig() *Config {
 	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
@@ -60,6 +70,7 @@ func GetConfig() *Config {
 	keyFlag := flag.String("k", defaultKey, "Ключ для шифрования пользователя")
 	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
 	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
+	enableHttpsFlag := flag.Bool("s", false, "Включить HTTPS")
 	flag.Parse()
 
 	urlServer := getEnvString("SERVER_ADDRESS", *urlServerFlag)
@@ -72,6 +83,7 @@ func GetConfig() *Config {
 	key := getEnvString("KEY", *keyFlag)
 	auditFile := getEnvString("AUDIT_FILE", *auditFileFlag)
 	auditURL := getEnvString("AUDIT_URL", *auditURLFlag)
+	enableHttps := getEnvBool("ENABLE_HTTPS", *enableHttpsFlag)
 
 	return &Config{
 		URLserver:     urlServer,
@@ -84,5 +96,6 @@ func GetConfig() *Config {
 		Key:           key,
 		AuditFilePath: auditFile,
 		AuditURL:      auditURL,
+		EnableHttps:   enableHttps,
 	}
 }

@@ -40,7 +40,7 @@ func ExampleServer_Start() {
 	converter := service.NewConverter(ctx, cfg.URLforShort, cfg.FilePath, nil, 100, 10, 1)
 
 	// Создаём сервер
-	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL)
+	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL, false)
 
 	// Запускаем в фоне
 	ts := httptest.NewServer(server.GetHandler())

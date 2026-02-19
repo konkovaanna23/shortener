@@ -48,7 +48,7 @@ func main() {
 	}
 
 	converter := service.NewConverter(ctx, cfg.URLforShort, cfg.FilePath, database, cfg.BufferSize, cfg.BatchSize, cfg.TimeFlushDel)
-	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL)
+	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL, cfg.EnableHttps)
 
 	go func() {
 		logrus.Printf("Сервер запущен на: %s", cfg.URLserver)
