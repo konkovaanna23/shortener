@@ -20,7 +20,7 @@ type Server struct {
 	converter   *service.Converter
 	srv         *http.Server
 	auditor     *audit.Publisher
-	enableHttps bool
+	enableHTTPS bool
 }
 
 // NewServer создаёт и настраивает новый экземпляр HTTP-сервера для сервиса сокращения URL.
@@ -56,7 +56,7 @@ type Server struct {
 //	)
 //
 //	go server.Start(ctx)
-func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string, enableHttps bool) *Server {
+func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string, enableHTTPS bool) *Server {
 
 	mux := chi.NewRouter()
 
@@ -64,7 +64,7 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 		mux:         mux,
 		url:         url,
 		converter:   converter,
-		enableHttps: enableHttps,
+		enableHTTPS: enableHTTPS,
 	}
 	s.mux.Use(middleware.CompressMiddleware)
 	s.mux.Use(middleware.LoggingMiddleware)
@@ -80,7 +80,7 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 		Addr:    url,
 		Handler: mux,
 	}
-	if enableHttps {
+	if enableHTTPS {
 		manager := &autocert.Manager{
 			Cache:  autocert.DirCache("cache-dir"),
 			Prompt: autocert.AcceptTOS,
@@ -118,7 +118,7 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	if s.enableHttps {
+	if s.enableHTTPS {
 		err := s.srv.ListenAndServeTLS("", "")
 		return err
 	} else {
