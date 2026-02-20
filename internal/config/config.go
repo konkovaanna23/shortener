@@ -2,16 +2,18 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"log"
 	"os"
 	"strconv"
+
+	"github.com/konkovaanna23/shortener/internal/file"
 )
 
 const (
 	defaultHost         = "localhost:8080"
 	defaultURLShort     = "http://localhost:8080"
-	defaultFilePath     = "shorturl.json"
-	defaultDSN          = "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable"
 	defaultBufferSize   = 100
 	defaultBatchSize    = 3
 	defaultKey          = "secret"
@@ -20,45 +22,80 @@ const (
 
 // Config Конфигурация приложения.
 type Config struct {
-	URLserver     string
-	URLforShort   string
-	FilePath      string
-	DSN           string
-	BufferSize    int
-	BatchSize     int
-	Key           string
-	TimeFlushDel  int
-	AuditFilePath string
-	AuditURL      string
-	EnableHTTPS   bool
+	URLserver     string `json:"server_address"`
+	URLforShort   string `json:"base_url"`
+	FilePath      string `json:"file_storage_path"`
+	DSN           string `json:"dsn"`
+	BufferSize    int    `json:"buffer_size"`
+	BatchSize     int    `json:"batch_size"`
+	Key           string `json:"key"`
+	TimeFlushDel  int    `json:"time_flush_delete"`
+	AuditFilePath string `json:"audit_file"`
+	AuditURL      string `json:"audit_url"`
+	EnableHTTPS   bool   `json:"enable_https"`
 }
 
-func getEnvString(envKey, defaultValue string) string {
-	if v := os.Getenv(envKey); v != "" {
-		return v
-	}
-	return defaultValue
+type configFile struct {
+	URLserver     *string `json:"server_address"`
+	URLforShort   *string `json:"base_url"`
+	FilePath      *string `json:"file_storage_path"`
+	DSN           *string `json:"dsn"`
+	BufferSize    *int    `json:"buffer_size"`
+	BatchSize     *int    `json:"batch_size"`
+	Key           *string `json:"key"`
+	TimeFlushDel  *int    `json:"time_flush_delete"`
+	AuditFilePath *string `json:"audit_file"`
+	AuditURL      *string `json:"audit_url"`
+	EnableHTTPS   *bool   `json:"enable_https"`
 }
 
-func getEnvInt(envKey string, defaultValue int) int {
-	if v := os.Getenv(envKey); v != "" {
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
+func defaultConfig() *Config {
+	return &Config{
+		URLserver:    defaultHost,
+		URLforShort:  defaultURLShort,
+		FilePath:     "",
+		DSN:          "",
+		BufferSize:   defaultBufferSize,
+		BatchSize:    defaultBatchSize,
+		Key:          defaultKey,
+		TimeFlushDel: defaultTimeFlushDel,
 	}
-	return defaultValue
 }
 
-func getEnvBool(envKey string, defaultValue bool) bool {
-	if v := os.Getenv(envKey); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			return b
-		}
+func lookupEnvString(key string) (string, bool) {
+	v := os.Getenv(key)
+	if v == "" {
+		return "", false
 	}
-	return defaultValue
+	return v, true
+}
+
+func lookupEnvInt(key string) (int, bool) {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0, false
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, false
+	}
+	return i, true
+}
+
+func lookupEnvBool(key string) (bool, bool) {
+	v := os.Getenv(key)
+	if v == "" {
+		return false, false
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, false
+	}
+	return b, true
 }
 
 // GetConfig возвращает конфигурацию приложения.
+// Приоритет: ФЛАГИ > ENV > CONFIG(JSON) > DEFAULTS.
 func GetConfig() *Config {
 	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
 	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
@@ -71,31 +108,142 @@ func GetConfig() *Config {
 	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
 	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
 	enableHTTPSFlag := flag.Bool("s", false, "Включить HTTPS")
+	configJSONFlag := flag.String("c", "", "Файл конфигурации")
+
 	flag.Parse()
 
-	urlServer := getEnvString("SERVER_ADDRESS", *urlServerFlag)
-	urlForShort := getEnvString("BASE_URL", *urlForShortFlag)
-	fileStoragePath := getEnvString("FILE_STORAGE_PATH", *fileStoragePathFlag)
-	dsn := getEnvString("DSN", *dsnFlag)
-	bufferSize := getEnvInt("BUFFER_SIZE", *bufferSizeFlag)
-	batchSize := getEnvInt("BATCH_SIZE", *batchSizeFlag)
-	timeFlushDel := getEnvInt("TIME_FLUSH_DELETE", *timeFlushDelFlag)
-	key := getEnvString("KEY", *keyFlag)
-	auditFile := getEnvString("AUDIT_FILE", *auditFileFlag)
-	auditURL := getEnvString("AUDIT_URL", *auditURLFlag)
-	enableHTTPS := getEnvBool("ENABLE_HTTPS", *enableHTTPSFlag)
+	cfg := defaultConfig()
 
-	return &Config{
-		URLserver:     urlServer,
-		URLforShort:   urlForShort,
-		FilePath:      fileStoragePath,
-		DSN:           dsn,
-		BufferSize:    bufferSize,
-		BatchSize:     batchSize,
-		TimeFlushDel:  timeFlushDel,
-		Key:           key,
-		AuditFilePath: auditFile,
-		AuditURL:      auditURL,
-		EnableHTTPS:   enableHTTPS,
+	configPath := ""
+	flag.CommandLine.Visit(func(f *flag.Flag) {
+		if f.Name == "c" {
+			configPath = *configJSONFlag
+		}
+	})
+	if configPath == "" {
+		if v, ok := lookupEnvString("CONFIG"); ok {
+			configPath = v
+		}
+	}
+
+	if configPath != "" {
+		fc, err := loadConfigFile(configPath)
+		if err != nil {
+			log.Println("Ошибка чтения файла конфига:", err.Error())
+		} else {
+			applyConfigFile(cfg, fc)
+		}
+	}
+
+	if v, ok := lookupEnvString("SERVER_ADDRESS"); ok {
+		cfg.URLserver = v
+	}
+	if v, ok := lookupEnvString("BASE_URL"); ok {
+		cfg.URLforShort = v
+	}
+	if v, ok := lookupEnvString("FILE_STORAGE_PATH"); ok {
+		cfg.FilePath = v
+	}
+	if v, ok := lookupEnvString("DSN"); ok {
+		cfg.DSN = v
+	}
+	if v, ok := lookupEnvInt("BUFFER_SIZE"); ok {
+		cfg.BufferSize = v
+	}
+	if v, ok := lookupEnvInt("BATCH_SIZE"); ok {
+		cfg.BatchSize = v
+	}
+	if v, ok := lookupEnvInt("TIME_FLUSH_DELETE"); ok {
+		cfg.TimeFlushDel = v
+	}
+	if v, ok := lookupEnvString("KEY"); ok {
+		cfg.Key = v
+	}
+	if v, ok := lookupEnvString("AUDIT_FILE"); ok {
+		cfg.AuditFilePath = v
+	}
+	if v, ok := lookupEnvString("AUDIT_URL"); ok {
+		cfg.AuditURL = v
+	}
+	if v, ok := lookupEnvBool("ENABLE_HTTPS"); ok {
+		cfg.EnableHTTPS = v
+	}
+
+	flag.CommandLine.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "a":
+			cfg.URLserver = *urlServerFlag
+		case "b":
+			cfg.URLforShort = *urlForShortFlag
+		case "f":
+			cfg.FilePath = *fileStoragePathFlag
+		case "d":
+			cfg.DSN = *dsnFlag
+		case "u":
+			cfg.BufferSize = *bufferSizeFlag
+		case "h":
+			cfg.BatchSize = *batchSizeFlag
+		case "t":
+			cfg.TimeFlushDel = *timeFlushDelFlag
+		case "k":
+			cfg.Key = *keyFlag
+		case "audit-file":
+			cfg.AuditFilePath = *auditFileFlag
+		case "audit-url":
+			cfg.AuditURL = *auditURLFlag
+		case "s":
+			cfg.EnableHTTPS = *enableHTTPSFlag
+		}
+	})
+
+	return cfg
+}
+
+func loadConfigFile(jsonFile string) (*configFile, error) {
+	data, err := file.ReadFromFile(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var fc configFile
+	if err := json.Unmarshal(data, &fc); err != nil {
+		return nil, err
+	}
+	return &fc, nil
+}
+
+func applyConfigFile(dst *Config, src *configFile) {
+	if src.URLserver != nil {
+		dst.URLserver = *src.URLserver
+	}
+	if src.URLforShort != nil {
+		dst.URLforShort = *src.URLforShort
+	}
+	if src.FilePath != nil {
+		dst.FilePath = *src.FilePath
+	}
+	if src.DSN != nil {
+		dst.DSN = *src.DSN
+	}
+	if src.BufferSize != nil {
+		dst.BufferSize = *src.BufferSize
+	}
+	if src.BatchSize != nil {
+		dst.BatchSize = *src.BatchSize
+	}
+	if src.Key != nil {
+		dst.Key = *src.Key
+	}
+	if src.TimeFlushDel != nil {
+		dst.TimeFlushDel = *src.TimeFlushDel
+	}
+	if src.AuditFilePath != nil {
+		dst.AuditFilePath = *src.AuditFilePath
+	}
+	if src.AuditURL != nil {
+		dst.AuditURL = *src.AuditURL
+	}
+	if src.EnableHTTPS != nil {
+		dst.EnableHTTPS = *src.EnableHTTPS
 	}
 }
