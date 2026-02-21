@@ -35,7 +35,7 @@ type Config struct {
 	EnableHTTPS   bool   `json:"enable_https"`
 }
 
-type configFile struct {
+type configPointer struct {
 	URLserver     *string `json:"server_address"`
 	URLforShort   *string `json:"base_url"`
 	FilePath      *string `json:"file_storage_path"`
@@ -47,6 +47,7 @@ type configFile struct {
 	AuditFilePath *string `json:"audit_file"`
 	AuditURL      *string `json:"audit_url"`
 	EnableHTTPS   *bool   `json:"enable_https"`
+	ConfigPath    *string
 }
 
 func defaultConfig() *Config {
@@ -97,27 +98,15 @@ func lookupEnvBool(key string) (bool, bool) {
 // GetConfig возвращает конфигурацию приложения.
 // Приоритет: ФЛАГИ > ENV > CONFIG(JSON) > DEFAULTS.
 func GetConfig() *Config {
-	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
-	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
-	fileStoragePathFlag := flag.String("f", "", "Путь до файла")
-	dsnFlag := flag.String("d", "", "DSN для подключения к базе данных")
-	bufferSizeFlag := flag.Int("u", defaultBufferSize, "Размер буфера для накопления объектов обновления")
-	batchSizeFlag := flag.Int("h", defaultBatchSize, "Размер обновляемых URL для удаления")
-	timeFlushDelFlag := flag.Int("t", defaultTimeFlushDel, "Период ожидания обновления удаляемых данных(в секундах)")
-	keyFlag := flag.String("k", defaultKey, "Ключ для шифрования пользователя")
-	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
-	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
-	enableHTTPSFlag := flag.Bool("s", false, "Включить HTTPS")
-	configJSONFlag := flag.String("c", "", "Файл конфигурации")
 
-	flag.Parse()
+	cfgFlag := readFlag()
 
-	cfg := defaultConfig()
+	cfg := &Config{}
 
 	configPath := ""
 	flag.CommandLine.Visit(func(f *flag.Flag) {
 		if f.Name == "c" {
-			configPath = *configJSONFlag
+			configPath = *cfgFlag.ConfigPath
 		}
 	})
 	if configPath == "" {
@@ -135,6 +124,46 @@ func GetConfig() *Config {
 		}
 	}
 
+	applyEnv(cfg)
+
+	applyFlag(cfg, cfgFlag)
+
+	return cfg
+}
+
+func readFlag() *configPointer {
+	urlServerFlag := flag.String("a", defaultHost, "Адрес запуска HTTP-сервера")
+	urlForShortFlag := flag.String("b", defaultURLShort, "Основной URL для сокращения")
+	fileStoragePathFlag := flag.String("f", "", "Путь до файла")
+	dsnFlag := flag.String("d", "", "DSN для подключения к базе данных")
+	bufferSizeFlag := flag.Int("u", defaultBufferSize, "Размер буфера для накопления объектов обновления")
+	batchSizeFlag := flag.Int("h", defaultBatchSize, "Размер обновляемых URL для удаления")
+	timeFlushDelFlag := flag.Int("t", defaultTimeFlushDel, "Период ожидания обновления удаляемых данных(в секундах)")
+	keyFlag := flag.String("k", defaultKey, "Ключ для шифрования пользователя")
+	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
+	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
+	enableHTTPSFlag := flag.Bool("s", false, "Включить HTTPS")
+	configJSONFlag := flag.String("c", "", "Файл конфигурации")
+
+	flag.Parse()
+
+	return &configPointer{
+		URLserver:     urlServerFlag,
+		URLforShort:   urlForShortFlag,
+		FilePath:      fileStoragePathFlag,
+		DSN:           dsnFlag,
+		BufferSize:    bufferSizeFlag,
+		BatchSize:     batchSizeFlag,
+		TimeFlushDel:  timeFlushDelFlag,
+		Key:           keyFlag,
+		AuditFilePath: auditFileFlag,
+		AuditURL:      auditURLFlag,
+		EnableHTTPS:   enableHTTPSFlag,
+		ConfigPath:    configJSONFlag,
+	}
+}
+
+func applyEnv(cfg *Config) {
 	if v, ok := lookupEnvString("SERVER_ADDRESS"); ok {
 		cfg.URLserver = v
 	}
@@ -168,51 +197,51 @@ func GetConfig() *Config {
 	if v, ok := lookupEnvBool("ENABLE_HTTPS"); ok {
 		cfg.EnableHTTPS = v
 	}
+}
 
+func applyFlag(dst *Config, src *configPointer) {
 	flag.CommandLine.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "a":
-			cfg.URLserver = *urlServerFlag
+			dst.URLserver = *src.URLserver
 		case "b":
-			cfg.URLforShort = *urlForShortFlag
+			dst.URLforShort = *src.URLforShort
 		case "f":
-			cfg.FilePath = *fileStoragePathFlag
+			dst.FilePath = *src.FilePath
 		case "d":
-			cfg.DSN = *dsnFlag
+			dst.DSN = *src.DSN
 		case "u":
-			cfg.BufferSize = *bufferSizeFlag
+			dst.BufferSize = *src.BufferSize
 		case "h":
-			cfg.BatchSize = *batchSizeFlag
+			dst.BatchSize = *src.BatchSize
 		case "t":
-			cfg.TimeFlushDel = *timeFlushDelFlag
+			dst.TimeFlushDel = *src.TimeFlushDel
 		case "k":
-			cfg.Key = *keyFlag
+			dst.Key = *src.Key
 		case "audit-file":
-			cfg.AuditFilePath = *auditFileFlag
+			dst.AuditFilePath = *src.AuditFilePath
 		case "audit-url":
-			cfg.AuditURL = *auditURLFlag
+			dst.AuditURL = *src.AuditURL
 		case "s":
-			cfg.EnableHTTPS = *enableHTTPSFlag
+			dst.EnableHTTPS = *src.EnableHTTPS
 		}
 	})
-
-	return cfg
 }
 
-func loadConfigFile(jsonFile string) (*configFile, error) {
+func loadConfigFile(jsonFile string) (*configPointer, error) {
 	data, err := file.ReadFromFile(jsonFile)
 	if err != nil {
 		return nil, err
 	}
 
-	var fc configFile
+	var fc configPointer
 	if err := json.Unmarshal(data, &fc); err != nil {
 		return nil, err
 	}
 	return &fc, nil
 }
 
-func applyConfigFile(dst *Config, src *configFile) {
+func applyConfigFile(dst *Config, src *configPointer) {
 	if src.URLserver != nil {
 		dst.URLserver = *src.URLserver
 	}
