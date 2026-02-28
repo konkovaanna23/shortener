@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -25,6 +28,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	quitCh := make(chan os.Signal, 1)
+	signal.Notify(quitCh, syscall.SIGQUIT)
+	defer signal.Stop(quitCh)
 
 	// pprof server
 	pprofSrv := &http.Server{Addr: "localhost:6060"}
@@ -57,11 +64,31 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
-	logrus.Println("Сервер остановлен")
+	for {
+		select {
+		case <-quitCh:
+			fmt.Fprintln(os.Stderr, "Получен сигнал SIGQUIT: goroutine dump (pprof)")
 
-	// graceful shutdown pprof
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_ = pprofSrv.Shutdown(shutdownCtx)
+			if p := pprof.Lookup("goroutine"); p != nil {
+				err := p.WriteTo(os.Stderr, 2)
+				if err != nil {
+					logrus.Error(err)
+				}
+			} else {
+				fmt.Fprintln(os.Stderr, "pprof.Lookup(\"goroutine\") вернул nil")
+			}
+			continue
+
+		case <-ctx.Done():
+			logrus.Println("Сервер остановлен")
+
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			err := pprofSrv.Shutdown(shutdownCtx)
+			if err != nil {
+				logrus.Error(err)
+			}
+			return
+		}
+	}
 }

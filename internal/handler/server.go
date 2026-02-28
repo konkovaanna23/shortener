@@ -82,8 +82,9 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 	}
 	if enableHTTPS {
 		manager := &autocert.Manager{
-			Cache:  autocert.DirCache("cache-dir"),
-			Prompt: autocert.AcceptTOS,
+			Cache:      autocert.DirCache("cache-dir"),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist("shortener.ru", "www.shortener.ru"),
 		}
 		s.srv.TLSConfig = manager.TLSConfig()
 	}
