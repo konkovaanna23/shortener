@@ -24,7 +24,7 @@ func TestServer_newURL(t *testing.T) {
 	}
 	database, _ := db.NewConnect("")
 	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database, 1000, 3, 2)
-	s := NewServer("localhost:8080", converter, "keytest", "", "", false)
+	s := NewServer("localhost:8080", converter, "keytest", "", "", false, "")
 	recorder := httptest.NewRecorder()
 
 	s.newURL(recorder, req)
@@ -52,7 +52,7 @@ func TestServer_getURL(t *testing.T) {
 	database, _ := db.NewConnect("")
 	sourceURL := "https://google.com"
 	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database, 1000, 3, 2)
-	s := NewServer("localhost:8080", converter, "keytest", "", "", false)
+	s := NewServer("localhost:8080", converter, "keytest", "", "", false, "")
 	ts := httptest.NewServer(s.mux)
 	defer ts.Close()
 	response, err := http.Post(ts.URL+"/", "text/plain", strings.NewReader(sourceURL))
@@ -89,7 +89,7 @@ func TestServer_getURL(t *testing.T) {
 func TestServer_newJsonURL(t *testing.T) {
 	database, _ := db.NewConnect("")
 	converter := service.NewConverter(context.Background(), "http://localhost:8080", "", database, 1000, 3, 2)
-	s := NewServer("localhost:8080", converter, "keytest", "", "", false)
+	s := NewServer("localhost:8080", converter, "keytest", "", "", false, "")
 
 	input := &service.URLRequest{
 		URL: "https://example.com",

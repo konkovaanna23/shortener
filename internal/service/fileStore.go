@@ -180,3 +180,27 @@ func (c *Converter) DeleteURLsFromFile(urls []*model.DescriptionURL) error {
 	}
 	return nil
 }
+
+// GetStatsFile функция получения статистики из файла.
+func (c *Converter) GetStatsFile() (*model.Stats, error) {
+	c.fMx.RLock()
+	defer c.fMx.RUnlock()
+	sourceURLs, err := c.getInfoURLFromFile()
+	if err != nil {
+		return nil, err
+	}
+	if sourceURLs == nil {
+		return nil, nil
+	}
+	users := make(map[string]bool)
+	urls := make(map[string]bool)
+	for _, url := range sourceURLs {
+		users[url.UserID] = true
+		urls[url.Short] = true
+	}
+	result := &model.Stats{
+		Users: len(users),
+		URLs:  len(urls),
+	}
+	return result, nil
+}

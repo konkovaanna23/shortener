@@ -33,6 +33,7 @@ type Config struct {
 	AuditFilePath string `json:"audit_file"`
 	AuditURL      string `json:"audit_url"`
 	EnableHTTPS   bool   `json:"enable_https"`
+	TrustedSubnet string `json:"trusted_subnet"`
 }
 
 type configPointer struct {
@@ -48,18 +49,20 @@ type configPointer struct {
 	AuditURL      *string `json:"audit_url"`
 	EnableHTTPS   *bool   `json:"enable_https"`
 	ConfigPath    *string
+	TrustedSubnet *string `json:"trusted_subnet"`
 }
 
 func defaultConfig() *Config {
 	return &Config{
-		URLserver:    defaultHost,
-		URLforShort:  defaultURLShort,
-		FilePath:     "",
-		DSN:          "",
-		BufferSize:   defaultBufferSize,
-		BatchSize:    defaultBatchSize,
-		Key:          defaultKey,
-		TimeFlushDel: defaultTimeFlushDel,
+		URLserver:     defaultHost,
+		URLforShort:   defaultURLShort,
+		FilePath:      "", //"shorturl.json",
+		DSN:           "", //"postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable",
+		BufferSize:    defaultBufferSize,
+		BatchSize:     defaultBatchSize,
+		Key:           defaultKey,
+		TimeFlushDel:  defaultTimeFlushDel,
+		TrustedSubnet: "", //"192.168.1.0/24",
 	}
 }
 
@@ -138,12 +141,13 @@ func readFlag() *configPointer {
 	dsnFlag := flag.String("d", "", "DSN для подключения к базе данных")
 	bufferSizeFlag := flag.Int("u", defaultBufferSize, "Размер буфера для накопления объектов обновления")
 	batchSizeFlag := flag.Int("h", defaultBatchSize, "Размер обновляемых URL для удаления")
-	timeFlushDelFlag := flag.Int("t", defaultTimeFlushDel, "Период ожидания обновления удаляемых данных(в секундах)")
+	timeFlushDelFlag := flag.Int("td", defaultTimeFlushDel, "Период ожидания обновления удаляемых данных(в секундах)")
 	keyFlag := flag.String("k", defaultKey, "Ключ для шифрования пользователя")
 	auditFileFlag := flag.String("audit-file", "", "Путь до файла аудита")
 	auditURLFlag := flag.String("audit-url", "", "URL для аудита")
 	enableHTTPSFlag := flag.Bool("s", false, "Включить HTTPS")
 	configJSONFlag := flag.String("c", "", "Файл конфигурации")
+	trustedSubnetFlag := flag.String("t", "", "Cтроковое представление бесклассовой адресации (CIDR)")
 
 	flag.Parse()
 
@@ -160,6 +164,7 @@ func readFlag() *configPointer {
 		AuditURL:      auditURLFlag,
 		EnableHTTPS:   enableHTTPSFlag,
 		ConfigPath:    configJSONFlag,
+		TrustedSubnet: trustedSubnetFlag,
 	}
 }
 
@@ -197,6 +202,9 @@ func applyEnv(cfg *Config) {
 	if v, ok := lookupEnvBool("ENABLE_HTTPS"); ok {
 		cfg.EnableHTTPS = v
 	}
+	if v, ok := lookupEnvString("TRUSTED_SUBNET"); ok {
+		cfg.TrustedSubnet = v
+	}
 }
 
 func applyFlag(dst *Config, src *configPointer) {
@@ -214,7 +222,7 @@ func applyFlag(dst *Config, src *configPointer) {
 			dst.BufferSize = *src.BufferSize
 		case "h":
 			dst.BatchSize = *src.BatchSize
-		case "t":
+		case "td":
 			dst.TimeFlushDel = *src.TimeFlushDel
 		case "k":
 			dst.Key = *src.Key
@@ -224,6 +232,8 @@ func applyFlag(dst *Config, src *configPointer) {
 			dst.AuditURL = *src.AuditURL
 		case "s":
 			dst.EnableHTTPS = *src.EnableHTTPS
+		case "t":
+			dst.TrustedSubnet = *src.TrustedSubnet
 		}
 	})
 }
@@ -274,5 +284,8 @@ func applyConfigFile(dst *Config, src *configPointer) {
 	}
 	if src.EnableHTTPS != nil {
 		dst.EnableHTTPS = *src.EnableHTTPS
+	}
+	if src.TrustedSubnet != nil {
+		dst.TrustedSubnet = *src.TrustedSubnet
 	}
 }

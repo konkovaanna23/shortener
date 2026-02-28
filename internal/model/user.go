@@ -64,3 +64,7 @@ func (lu *UserURLS) ExistURLForUser(userID string, url string) bool {
 	}
 	return false
 }
+
+func (lu *UserURLS) GetCountUsers() int {
+	return len(lu.userURLS)
+}

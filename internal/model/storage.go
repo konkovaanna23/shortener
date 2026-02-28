@@ -148,3 +148,12 @@ func (s *Storage) GetURLMapForList(list []string) map[string]string {
 	})
 	return resultMap
 }
+
+func (s *Storage) GetCountURLs() int {
+	var count int
+	s.urls.Range(func(key, value interface{}) bool {
+		count++
+		return true // продолжаем обход
+	})
+	return count
+}
