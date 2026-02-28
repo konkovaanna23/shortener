@@ -57,12 +57,12 @@ func defaultConfig() *Config {
 		URLserver:     defaultHost,
 		URLforShort:   defaultURLShort,
 		FilePath:      "", //"shorturl.json",
-		DSN:           "postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable",
+		DSN:           "", //"postgres://user_main:user_main@localhost:5432/shortenerdb?sslmode=disable",
 		BufferSize:    defaultBufferSize,
 		BatchSize:     defaultBatchSize,
 		Key:           defaultKey,
 		TimeFlushDel:  defaultTimeFlushDel,
-		TrustedSubnet: "192.168.1.0/24",
+		TrustedSubnet: "", //"192.168.1.0/24",
 	}
 }
 
@@ -104,7 +104,7 @@ func GetConfig() *Config {
 
 	cfgFlag := readFlag()
 
-	cfg := defaultConfig()
+	cfg := &Config{}
 
 	configPath := ""
 	flag.CommandLine.Visit(func(f *flag.Flag) {
