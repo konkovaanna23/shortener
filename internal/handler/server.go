@@ -10,15 +10,17 @@ import (
 	"github.com/konkovaanna23/shortener/internal/handler/middleware"
 	"github.com/konkovaanna23/shortener/internal/service"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // Server - структура сервера.
 type Server struct {
-	url       string
-	mux       *chi.Mux
-	converter *service.Converter
-	srv       *http.Server
-	auditor   *audit.Publisher
+	url         string
+	mux         *chi.Mux
+	converter   *service.Converter
+	srv         *http.Server
+	auditor     *audit.Publisher
+	enableHTTPS bool
 }
 
 // NewServer создаёт и настраивает новый экземпляр HTTP-сервера для сервиса сокращения URL.
@@ -54,14 +56,15 @@ type Server struct {
 //	)
 //
 //	go server.Start(ctx)
-func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string) *Server {
+func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string, enableHTTPS bool) *Server {
 
 	mux := chi.NewRouter()
 
 	s := &Server{
-		mux:       mux,
-		url:       url,
-		converter: converter,
+		mux:         mux,
+		url:         url,
+		converter:   converter,
+		enableHTTPS: enableHTTPS,
 	}
 	s.mux.Use(middleware.CompressMiddleware)
 	s.mux.Use(middleware.LoggingMiddleware)
@@ -76,6 +79,13 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 	s.srv = &http.Server{
 		Addr:    url,
 		Handler: mux,
+	}
+	if enableHTTPS {
+		manager := &autocert.Manager{
+			Cache:  autocert.DirCache("cache-dir"),
+			Prompt: autocert.AcceptTOS,
+		}
+		s.srv.TLSConfig = manager.TLSConfig()
 	}
 
 	auditor := audit.NewPublisher()
@@ -108,8 +118,14 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	err := s.srv.ListenAndServe()
-	return err
+	if s.enableHTTPS {
+		err := s.srv.ListenAndServeTLS("", "")
+		return err
+	} else {
+		err := s.srv.ListenAndServe()
+		return err
+	}
+
 }
 
 func (s *Server) GetHandler() http.Handler {
