@@ -34,6 +34,7 @@ type Config struct {
 	AuditURL      string `json:"audit_url"`
 	EnableHTTPS   bool   `json:"enable_https"`
 	TrustedSubnet string `json:"trusted_subnet"`
+	GrpcServer    string `json:"grpc_server_address"`
 }
 
 type configPointer struct {
@@ -50,6 +51,7 @@ type configPointer struct {
 	EnableHTTPS   *bool   `json:"enable_https"`
 	ConfigPath    *string
 	TrustedSubnet *string `json:"trusted_subnet"`
+	GrpcServer    *string `json:"grpc_server_address"`
 }
 
 func defaultConfig() *Config {
@@ -148,6 +150,7 @@ func readFlag() *configPointer {
 	enableHTTPSFlag := flag.Bool("s", false, "Включить HTTPS")
 	configJSONFlag := flag.String("c", "", "Файл конфигурации")
 	trustedSubnetFlag := flag.String("t", "", "Cтроковое представление бесклассовой адресации (CIDR)")
+	grpcServerFlag := flag.String("g", "", "Адрес gRPC-сервера")
 
 	flag.Parse()
 
@@ -165,6 +168,7 @@ func readFlag() *configPointer {
 		EnableHTTPS:   enableHTTPSFlag,
 		ConfigPath:    configJSONFlag,
 		TrustedSubnet: trustedSubnetFlag,
+		GrpcServer:    grpcServerFlag,
 	}
 }
 
@@ -205,6 +209,9 @@ func applyEnv(cfg *Config) {
 	if v, ok := lookupEnvString("TRUSTED_SUBNET"); ok {
 		cfg.TrustedSubnet = v
 	}
+	if v, ok := lookupEnvString("GRPC_SERVER_ADDRESS"); ok {
+		cfg.GrpcServer = v
+	}
 }
 
 func applyFlag(dst *Config, src *configPointer) {
@@ -234,6 +241,8 @@ func applyFlag(dst *Config, src *configPointer) {
 			dst.EnableHTTPS = *src.EnableHTTPS
 		case "t":
 			dst.TrustedSubnet = *src.TrustedSubnet
+		case "g":
+			dst.GrpcServer = *src.GrpcServer
 		}
 	})
 }
@@ -287,5 +296,8 @@ func applyConfigFile(dst *Config, src *configPointer) {
 	}
 	if src.TrustedSubnet != nil {
 		dst.TrustedSubnet = *src.TrustedSubnet
+	}
+	if src.GrpcServer != nil {
+		dst.GrpcServer = *src.GrpcServer
 	}
 }

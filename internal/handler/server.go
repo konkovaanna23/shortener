@@ -67,6 +67,7 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 		converter:     converter,
 		enableHTTPS:   enableHTTPS,
 		trustedSubnet: trustedSubnet,
+		auditor:       audit.NewAuditor(auditFile, auditURL),
 	}
 	s.mux.Use(middleware.CompressMiddleware)
 	s.mux.Use(middleware.LoggingMiddleware)
@@ -93,23 +94,6 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 		}
 		s.srv.TLSConfig = manager.TLSConfig()
 	}
-
-	auditor := audit.NewPublisher()
-
-	if auditFile != "" {
-		if fileObs, err := audit.NewFileObserver(auditFile); err == nil {
-			auditor.Subscribe(fileObs)
-		} else {
-			logrus.Error(err)
-		}
-
-	}
-	if auditURL != "" {
-		httpObs := audit.NewHTTPObserver(auditURL)
-		auditor.Subscribe(httpObs)
-	}
-
-	s.auditor = auditor
 
 	return s
 }
