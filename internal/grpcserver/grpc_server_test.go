@@ -142,6 +142,7 @@ func TestExpandURL_Success(t *testing.T) {
 	request := &ss.URLShortenRequest_builder{Url: url}
 
 	resp, err := client.ShortenURL(ctx, request.Build())
+	assert.NoError(t, err)
 
 	requestExpan := &ss.URLExpandRequest_builder{Id: strings.ReplaceAll(resp.GetResult(), shortHost+"/", "")}
 
