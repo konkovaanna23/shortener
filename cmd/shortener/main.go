@@ -14,7 +14,7 @@ import (
 
 	"github.com/konkovaanna23/shortener/internal/config"
 	"github.com/konkovaanna23/shortener/internal/config/db"
-	"github.com/konkovaanna23/shortener/internal/grpc_server"
+	"github.com/konkovaanna23/shortener/internal/grpcserver"
 	"github.com/konkovaanna23/shortener/internal/handler"
 	"github.com/konkovaanna23/shortener/internal/service"
 	ss "github.com/konkovaanna23/shortener/pkg/shortenerservice"
@@ -60,7 +60,7 @@ func main() {
 
 	converter := service.NewConverter(ctx, cfg.URLforShort, cfg.FilePath, database, cfg.BufferSize, cfg.BatchSize, cfg.TimeFlushDel)
 	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL, cfg.EnableHTTPS, cfg.TrustedSubnet)
-	grpcServer := grpc_server.NewGrpcServer(converter, cfg.AuditFilePath, cfg.AuditURL)
+	grpcServer := grpcserver.NewGrpcServer(converter, cfg.AuditFilePath, cfg.AuditURL)
 
 	go func() {
 		logrus.Printf("Сервер запущен на: %s", cfg.URLserver)
@@ -106,13 +106,13 @@ func main() {
 	}
 }
 
-func StartGrpcServer(host string, srv *grpc_server.GrpcServer) error {
+func StartGrpcServer(host string, srv *grpcserver.GrpcServer) error {
 	listen, err := net.Listen("tcp", host)
 	if err != nil {
 		return err
 	}
 
-	s := grpc.NewServer(grpc.UnaryInterceptor(grpc_server.UnaryInterceptor))
+	s := grpc.NewServer(grpc.UnaryInterceptor(grpcserver.UnaryInterceptor))
 
 	ss.RegisterShortenerServiceServer(s, srv)
 

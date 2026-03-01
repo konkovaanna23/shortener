@@ -1,4 +1,4 @@
-package grpc_server
+package grpcserver
 
 import (
 	"context"
@@ -17,7 +17,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const userKey = "user_id"
+type ctxKey struct{ key string }
+
+var userIDKey = ctxKey{"user_id"}
 
 type GrpcServer struct {
 	ss.UnimplementedShortenerServiceServer
@@ -52,13 +54,13 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 
 	token := parts[1]
 
-	ctx = context.WithValue(ctx, userKey, token)
+	ctx = context.WithValue(ctx, userIDKey, token)
 
 	return handler(ctx, req)
 }
 
 func (g *GrpcServer) ShortenURL(ctx context.Context, req *ss.URLShortenRequest) (*ss.URLShortenResponse, error) {
-	user, ok := ctx.Value(userKey).(string)
+	user, ok := ctx.Value(userIDKey).(string)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "пользователь не найден в контексте")
 	}
@@ -104,7 +106,7 @@ func (g *GrpcServer) ExpandURL(ctx context.Context, req *ss.URLExpandRequest) (*
 }
 
 func (g *GrpcServer) ListUserURLs(ctx context.Context, req *ss.Empty) (*ss.UserURLsResponse, error) {
-	user, ok := ctx.Value(userKey).(string)
+	user, ok := ctx.Value(userIDKey).(string)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "пользователь не найден в контексте")
 	}

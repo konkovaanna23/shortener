@@ -1,4 +1,4 @@
-package grpc_server
+package grpcserver
 
 import (
 	"context"
@@ -112,8 +112,10 @@ func TestShortenURL_Conflict(t *testing.T) {
 	request := &ss.URLShortenRequest_builder{Url: url}
 
 	_, err = client.ShortenURL(ctx, request.Build())
+	assert.NoError(t, err)
 
 	_, err = client.ShortenURL(ctx, request.Build())
+	assert.NoError(t, err)
 
 	st, ok := status.FromError(err)
 	assert.True(t, ok)
