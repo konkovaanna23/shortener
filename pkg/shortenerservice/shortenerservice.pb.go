@@ -250,7 +250,7 @@ func (b0 URLExpandResponse_builder) Build() *URLExpandResponse {
 
 type UserURLsResponse struct {
 	state          protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Url *[]*URLData            `protobuf:"bytes,1,rep,name=url,proto3"`
+	xxx_hidden_Url []*URLData            `protobuf:"bytes,1,rep,name=url,proto3"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -283,14 +283,14 @@ func (x *UserURLsResponse) ProtoReflect() protoreflect.Message {
 func (x *UserURLsResponse) GetUrl() []*URLData {
 	if x != nil {
 		if x.xxx_hidden_Url != nil {
-			return *x.xxx_hidden_Url
+			return x.xxx_hidden_Url
 		}
 	}
 	return nil
 }
 
 func (x *UserURLsResponse) SetUrl(v []*URLData) {
-	x.xxx_hidden_Url = &v
+	x.xxx_hidden_Url = v
 }
 
 type UserURLsResponse_builder struct {
@@ -303,7 +303,7 @@ func (b0 UserURLsResponse_builder) Build() *UserURLsResponse {
 	m0 := &UserURLsResponse{}
 	b, x := &b0, m0
 	_, _ = b, x
-	x.xxx_hidden_Url = &b.Url
+	x.xxx_hidden_Url = b.Url
 	return m0
 }
 

@@ -121,10 +121,10 @@ func (g *GrpcServer) ListUserURLs(ctx context.Context, req *ss.Empty) (*ss.UserU
 		resultURLs[i].SetOriginalUrl(r.Original)
 	}
 
-	response := &ss.UserURLsResponse_builder{
-		Url: resultURLs,
-	}
+	response := &ss.UserURLsResponse{}
 
-	return response.Build(), nil
+	response.SetUrl(resultURLs)
+
+	return response, nil
 
 }
