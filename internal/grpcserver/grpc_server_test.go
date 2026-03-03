@@ -115,7 +115,6 @@ func TestShortenURL_Conflict(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = client.ShortenURL(ctx, request.Build())
-	assert.NoError(t, err)
 
 	st, ok := status.FromError(err)
 	assert.True(t, ok)

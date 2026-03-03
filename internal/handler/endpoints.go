@@ -237,9 +237,9 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
 	ip := r.Header.Get("X-Real-IP")
 	if ip == "" {
-		return "", true
+		return "", s.trustedSubnet == ""
 	} else {
-		val, err := IPbelongsToSubnet(ip, s.trustedSubnet)
+		val, err := IPBelongsToSubnet(ip, s.trustedSubnet)
 		if err != nil {
 			logrus.Error("Ошибка проверки IP:", err.Error())
 			return "", false
@@ -248,7 +248,7 @@ func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
 	}
 }
 
-func IPbelongsToSubnet(ipStr string, subnet string) (bool, error) {
+func IPBelongsToSubnet(ipStr string, subnet string) (bool, error) {
 	if subnet == "" {
 		return true, nil
 	}

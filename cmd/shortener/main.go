@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -37,6 +38,8 @@ func main() {
 	signal.Notify(quitCh, syscall.SIGQUIT)
 	defer signal.Stop(quitCh)
 
+	errCh := make(chan error, 1)
+
 	// pprof server
 	pprofSrv := &http.Server{Addr: "localhost:6060"}
 	go func() {
@@ -64,16 +67,12 @@ func main() {
 
 	go func() {
 		logrus.Printf("Сервер запущен на: %s", cfg.URLserver)
-		if err := server.Start(ctx); err != nil {
-			logrus.Error(err)
-		}
+		errCh <- server.Start(ctx)
 	}()
 
 	if cfg.GrpcServer != "" {
 		go func() {
-			if err := StartGrpcServer(cfg.GrpcServer, grpcServer); err != nil {
-				logrus.Error("Ошибка запуска gRPC сервера:", err)
-			}
+			errCh <- startGrpcServer(cfg.GrpcServer, grpcServer)
 		}()
 	}
 
@@ -102,11 +101,18 @@ func main() {
 				logrus.Error(err)
 			}
 			return
+
+		case err := <-errCh:
+			if err != nil {
+				logrus.Errorf("Критическая ошибка в горутине: %v", err)
+				log.Fatal(err)
+			}
 		}
+
 	}
 }
 
-func StartGrpcServer(host string, srv *grpcserver.GrpcServer) error {
+func startGrpcServer(host string, srv *grpcserver.GrpcServer) error {
 	listen, err := net.Listen("tcp", host)
 	if err != nil {
 		return err

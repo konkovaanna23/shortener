@@ -64,9 +64,8 @@ func (g *GrpcServer) ShortenURL(ctx context.Context, req *ss.URLShortenRequest) 
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "пользователь не найден в контексте")
 	}
-	var urlRequest *service.URLRequest
 	logrus.Info("ShortenURL Заданный URL:", req.GetUrl(), " заданный user:", user)
-	urlRequest = &service.URLRequest{
+	urlRequest := &service.URLRequest{
 		URL: req.GetUrl(),
 	}
 	result, err := g.converter.AddURLForRequest(urlRequest, user)
