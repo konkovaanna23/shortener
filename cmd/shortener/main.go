@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -38,7 +37,7 @@ func main() {
 	signal.Notify(quitCh, syscall.SIGQUIT)
 	defer signal.Stop(quitCh)
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 
 	// pprof server
 	pprofSrv := &http.Server{Addr: "localhost:6060"}
@@ -63,7 +62,6 @@ func main() {
 
 	converter := service.NewConverter(ctx, cfg.URLforShort, cfg.FilePath, database, cfg.BufferSize, cfg.BatchSize, cfg.TimeFlushDel)
 	server := handler.NewServer(cfg.URLserver, converter, cfg.Key, cfg.AuditFilePath, cfg.AuditURL, cfg.EnableHTTPS, cfg.TrustedSubnet)
-	grpcServer := grpcserver.NewGrpcServer(converter, cfg.AuditFilePath, cfg.AuditURL)
 
 	go func() {
 		logrus.Printf("Сервер запущен на: %s", cfg.URLserver)
@@ -72,6 +70,7 @@ func main() {
 
 	if cfg.GrpcServer != "" {
 		go func() {
+			grpcServer := grpcserver.NewGrpcServer(converter, cfg.AuditFilePath, cfg.AuditURL)
 			errCh <- startGrpcServer(cfg.GrpcServer, grpcServer)
 		}()
 	}
@@ -104,8 +103,7 @@ func main() {
 
 		case err := <-errCh:
 			if err != nil {
-				logrus.Errorf("Критическая ошибка в горутине: %v", err)
-				log.Fatal(err)
+				logrus.Fatal("Критическая ошибка в горутине:", err)
 			}
 		}
 

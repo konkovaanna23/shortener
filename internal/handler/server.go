@@ -79,9 +79,8 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 	s.mux.Post("/api/shorten/batch", s.newJSONBatchURL)
 	s.mux.Get("/api/user/urls", s.getURLForUser)
 	s.mux.Delete("/api/user/urls", s.deleteURLForUser)
-	if trustedSubnet != "" {
-		s.mux.Get("/api/internal/stats", s.stats)
-	}
+	s.mux.Get("/api/internal/stats", s.stats)
+
 	s.srv = &http.Server{
 		Addr:    url,
 		Handler: mux,

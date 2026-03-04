@@ -236,22 +236,18 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
 	ip := r.Header.Get("X-Real-IP")
-	if ip == "" {
-		return "", s.trustedSubnet == ""
+	if s.trustedSubnet == "" {
+		return ip, false
 	} else {
 		val, err := IPBelongsToSubnet(ip, s.trustedSubnet)
 		if err != nil {
 			logrus.Error("Ошибка проверки IP:", err.Error())
-			return "", false
 		}
 		return ip, val
 	}
 }
 
 func IPBelongsToSubnet(ipStr string, subnet string) (bool, error) {
-	if subnet == "" {
-		return true, nil
-	}
 	_, cidr, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return false, fmt.Errorf("невалидный CIDR '%s': %w", subnet, err)
