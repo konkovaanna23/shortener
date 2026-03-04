@@ -412,3 +412,29 @@ func (c *Converter) StartDeleteProcessor(ctx context.Context, batchSize int, flu
 
 	go c.runProcessDeleteURL(ctx, mergedChan, batchSize, flushTimeout)
 }
+
+func (c *Converter) GetStats() (*model.Stats, error) {
+	switch c.modeStore {
+	case ModeStoreDB:
+		stats, err := c.GetStatsDB()
+		if err != nil {
+			logrus.Error("ошибка получения статистики из базы:", err)
+			return nil, err
+		}
+		return stats, nil
+	case ModeStoreFile:
+		stats, err := c.GetStatsFile()
+		if err != nil {
+			logrus.Error("ошибка получения статистики из файла:", err)
+			return nil, err
+		}
+		return stats, nil
+	case ModeStoreStorage:
+
+		return &model.Stats{
+			Users: c.userURLS.GetCountUsers(),
+			URLs:  c.storage.GetCountURLs(),
+		}, nil
+	}
+	return nil, nil
+}

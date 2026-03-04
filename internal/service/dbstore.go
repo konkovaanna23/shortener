@@ -127,7 +127,26 @@ func (c *Converter) GetInfoUserURLFromDB(user string) ([]*model.DescriptionURL, 
 	return result, nil
 }
 
+func (c *Converter) GetStatsDB() (*model.Stats, error) {
+	var stats model.Stats
+	query := `
+        SELECT 
+            (SELECT count(*) FROM urls.links) AS urls,  
+            (SELECT count(*) FROM urls.users) AS users
+    `
+
+	if err := c.db.Get(&stats, query); err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
 func (c *Converter) TranDeleteURLsFromDB(urls []*model.DescriptionURL) error {
+	if len(urls) == 0 {
+		logrus.Warningln("Нет данных для удаления")
+		return nil
+	}
 	tx, err := c.db.Beginx()
 	if err != nil {
 		return err

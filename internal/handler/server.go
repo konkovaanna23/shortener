@@ -15,12 +15,13 @@ import (
 
 // Server - структура сервера.
 type Server struct {
-	url         string
-	mux         *chi.Mux
-	converter   *service.Converter
-	srv         *http.Server
-	auditor     *audit.Publisher
-	enableHTTPS bool
+	url           string
+	mux           *chi.Mux
+	converter     *service.Converter
+	srv           *http.Server
+	auditor       *audit.Publisher
+	enableHTTPS   bool
+	trustedSubnet string
 }
 
 // NewServer создаёт и настраивает новый экземпляр HTTP-сервера для сервиса сокращения URL.
@@ -56,15 +57,17 @@ type Server struct {
 //	)
 //
 //	go server.Start(ctx)
-func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string, enableHTTPS bool) *Server {
+func NewServer(url string, converter *service.Converter, key string, auditFile string, auditURL string, enableHTTPS bool, trustedSubnet string) *Server {
 
 	mux := chi.NewRouter()
 
 	s := &Server{
-		mux:         mux,
-		url:         url,
-		converter:   converter,
-		enableHTTPS: enableHTTPS,
+		mux:           mux,
+		url:           url,
+		converter:     converter,
+		enableHTTPS:   enableHTTPS,
+		trustedSubnet: trustedSubnet,
+		auditor:       audit.NewAuditor(auditFile, auditURL),
 	}
 	s.mux.Use(middleware.CompressMiddleware)
 	s.mux.Use(middleware.LoggingMiddleware)
@@ -76,6 +79,8 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 	s.mux.Post("/api/shorten/batch", s.newJSONBatchURL)
 	s.mux.Get("/api/user/urls", s.getURLForUser)
 	s.mux.Delete("/api/user/urls", s.deleteURLForUser)
+	s.mux.Get("/api/internal/stats", s.stats)
+
 	s.srv = &http.Server{
 		Addr:    url,
 		Handler: mux,
@@ -88,23 +93,6 @@ func NewServer(url string, converter *service.Converter, key string, auditFile s
 		}
 		s.srv.TLSConfig = manager.TLSConfig()
 	}
-
-	auditor := audit.NewPublisher()
-
-	if auditFile != "" {
-		if fileObs, err := audit.NewFileObserver(auditFile); err == nil {
-			auditor.Subscribe(fileObs)
-		} else {
-			logrus.Error(err)
-		}
-
-	}
-	if auditURL != "" {
-		httpObs := audit.NewHTTPObserver(auditURL)
-		auditor.Subscribe(httpObs)
-	}
-
-	s.auditor = auditor
 
 	return s
 }

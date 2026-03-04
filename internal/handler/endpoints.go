@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -205,4 +207,56 @@ func (s *Server) deleteURLForUser(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("Delete UrlForUser ", string(bodyBytes), " Заданный user:", user)
 	go s.converter.DeleteURLsForUser(urls, user)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
+	logrus.Info("GET Stats Запрос статистики")
+	ip, ok := s.getAndValidateIP(r)
+	if !ok {
+		logrus.Error("IP-адрес не входит в доверенную подсеть, IP: ", ip)
+		http.Error(w, "IP-адрес не входит в доверенную подсеть", http.StatusForbidden)
+		return
+	}
+	stats, err := s.converter.GetStats()
+	if err != nil {
+		logrus.Error(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	bodyResult, err := json.Marshal(stats)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logrus.Info("GET Stats Статистика:", string(bodyResult))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(bodyResult)
+}
+
+func (s *Server) getAndValidateIP(r *http.Request) (string, bool) {
+	ip := r.Header.Get("X-Real-IP")
+	if s.trustedSubnet == "" {
+		return ip, false
+	} else {
+		val, err := IPBelongsToSubnet(ip, s.trustedSubnet)
+		if err != nil {
+			logrus.Error("Ошибка проверки IP:", err.Error())
+		}
+		return ip, val
+	}
+}
+
+func IPBelongsToSubnet(ipStr string, subnet string) (bool, error) {
+	_, cidr, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return false, fmt.Errorf("невалидный CIDR '%s': %w", subnet, err)
+	}
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("невалидный IP '%s'", ipStr)
+	}
+
+	return cidr.Contains(ip), nil
 }
